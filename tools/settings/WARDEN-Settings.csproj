@@ -53,4 +53,9 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
+  <!-- ★ 语言包作为内嵌资源（找不到外部语言包时用它保底） -->
+  <ItemGroup>
+    <EmbeddedResource Include="zh-Hans.txt" />
+  </ItemGroup>
+
 </Project>
