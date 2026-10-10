@@ -35,7 +35,7 @@ namespace WardenOnlineSetup
         private const string Repo = "WARDEN";
         private const string Version = "0.1.0-beta.2";
         private static readonly string ApiList =
-            "https://api.github.com/repos/{Owner}/{Repo}/releases";
+            $"https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static readonly string ApiLatest =
             $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
 
