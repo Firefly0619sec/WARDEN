@@ -551,7 +551,11 @@ namespace WardenOnlineSetup
             foreach (Match mm in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
             {
                 int at = mm.Index;
-                string head = json.Substring(Math.Max(0, at - 900), Math.Min(900, at));
+                    // ★ 按资产分段取（上一段 URL 之后 → 本段之前 ✓）
+                    //   原来"往前 900 字符"✗ 会被 uploader 嵌套对象顶出去 → 解析到 0 个 ✗
+                    int prevUrl = json.LastIndexOf("\"browser_download_url\"", at - 1);
+                    int segFrom = prevUrl < 0 ? 0 : prevUrl;
+                    string head = json.Substring(segFrom, at - segFrom);
                 Match n2 = Regex.Match(head, "\"name\"\\s*:\\s*\"([^\"]+)\"(?!.*\"name\")", RegexOptions.Singleline);
                 Match s2 = Regex.Match(head, "\"size\"\\s*:\\s*(\\d+)(?!.*\"size\")", RegexOptions.Singleline);
                 if (!n2.Success) { continue; }
@@ -571,9 +575,25 @@ namespace WardenOnlineSetup
                 var wild = found.Find(a => a.n.IndexOf(_assetWant, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (wild.n != null) { return wild; }
             }
+            // ★ 优先"离线安装包"：名字带 Setup 但【不带 Online/Web/Boot】✓
+            //   否则会挑中在线安装器自己（小的那个 ✗ 等于自己下自己 ✓）
             var setup = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                                       && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0);
+                                       && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0
+                                       && a.n.IndexOf("Online", StringComparison.OrdinalIgnoreCase) < 0
+                                       && a.n.IndexOf("Web", StringComparison.OrdinalIgnoreCase) < 0);
             if (setup.n != null) { return setup; }
+            setup = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                                    && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (setup.n != null)
+            {
+                // 剩下的都叫 Setup 时，挑最大的（离线包总是大的 ✓）
+                var biggest = setup;
+                foreach (var a in found)
+                {
+                    if (a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && a.sz > biggest.sz) { biggest = a; }
+                }
+                return biggest;
+            }
             var exe = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
             if (exe.n != null) { return exe; }
             return found[0];
