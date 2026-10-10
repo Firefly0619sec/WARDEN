@@ -34,12 +34,12 @@ namespace WardenOnlineSetup
 {
     internal static class Program
     {
-        private const string Owner = "Firefly0619sec";
-        private const string Repo = "WARDEN";
+        private static string Owner = "Firefly0619sec";   // ★ 不写死：--repo 可覆盖 ✓
+        private static string Repo = "WARDEN";             // ★ 不写死 ✓
         private const string Version = "0.2.4";
-        private static readonly string ApiLatest = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
-        private static readonly string ApiList = $"https://api.github.com/repos/{Owner}/{Repo}/releases";
-        private static readonly string Releases = $"https://github.com/{Owner}/{Repo}/releases";
+        private static string ApiLatest => $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
+        private static string ApiList => $"https://api.github.com/repos/{Owner}/{Repo}/releases";
+        private static string Releases => $"https://github.com/{Owner}/{Repo}/releases";
         private const string UA = "WARDEN-Online-Setup/" + Version;
 
         private static bool _en;
@@ -155,6 +155,17 @@ namespace WardenOnlineSetup
                     case "--check": check = true; break;
                     case "--env": envOnly = true; break;
                     case "--proxy": if (i + 1 < args.Length) { _proxy = args[++i]; } break;
+                    // ★ 通用化：仓库、资产名、是否含预发布，全都可以传 ✓
+                    //   （下载器不写死任何版本号 ✓ 每次问 GitHub 要最新版 ✓）
+                    case "--repo":
+                        if (i + 1 < args.Length)
+                        {
+                            string[] sp = args[++i].Split('/');
+                            if (sp.Length == 2 && sp[0].Length > 0 && sp[1].Length > 0) { Owner = sp[0]; Repo = sp[1]; }
+                        }
+                        break;
+                    case "--asset": if (i + 1 < args.Length) { _assetWant = args[++i]; } break;
+                    case "--prerelease": _includePre = true; break;
                     case "--version": Console.WriteLine("WARDEN " + Version); return 0;
                     case "-h":
                     case "--help":
@@ -440,35 +451,11 @@ namespace WardenOnlineSetup
             _busy = true;
             try
             {
-                string json = Curl(ApiLatest);
-                if (!json.Contains("tag_name"))
-                {
-                    string list = Curl(ApiList);
-                    int first = list.IndexOf("\"tag_name\"");
-                    int second = first >= 0 ? list.IndexOf("\"tag_name\"", first + 10) : -1;
-                    if (first < 0) { throw new Exception(T("查不到发布信息（没联网 / 需要代理 / 还没发布过版本 ✓）",
-                                                          "Could not read release info")); }
-                    json = second > first ? list.Substring(first - 20, second - first + 20) : list.Substring(first - 20);
-                }
-                var mt = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
-                var mn = Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
-                string tag = mt.Success ? mt.Groups[1].Value : "?";
-                _version = (mn.Success ? mn.Groups[1].Value : tag) + "   (" + tag + ")";
-
-                var list2 = new List<(string n, string u, long sz)>();
-                foreach (Match mm in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
-                {
-                    int at = mm.Index;
-                    string head = json.Substring(Math.Max(0, at - 900), Math.Min(900, at));
-                    Match n2 = Regex.Match(head, "\"name\"\\s*:\\s*\"([^\"]+)\"(?!.*\"name\")", RegexOptions.Singleline);
-                    Match s2 = Regex.Match(head, "\"size\"\\s*:\\s*(\\d+)(?!.*\"size\")", RegexOptions.Singleline);
-                    if (!n2.Success) { continue; }
-                    list2.Add((n2.Groups[1].Value, mm.Groups[1].Value, s2.Success ? long.Parse(s2.Groups[1].Value) : 0));
-                }
-                if (list2.Count == 0) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
-                var pick = list2.Find(a => a.n.Equals("WARDEN-Setup.exe", StringComparison.OrdinalIgnoreCase));
-                if (pick.n == null) { pick = list2.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)); }
-                if (pick.n == null) { pick = list2[0]; }
+                var (tag, name, assets, from) = Resolve();
+                _version = name + "   (" + tag + ")";
+                if (assets.Count == 0) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
+                var pick = Pick(assets);
+                if (pick.n == null) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
 
                 string tmp = Path.Combine(Path.GetTempPath(), "WARDEN-" + tag.Replace('/', '_') + "-" + pick.n);
                 if (File.Exists(tmp)) { try { File.Delete(tmp); } catch { } }
@@ -496,7 +483,7 @@ namespace WardenOnlineSetup
 
                 _status = T("正在校验 SHA256…", "Verifying SHA256…");
                 Refresh();
-                var sums = list2.Find(a => a.n.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
+                var sums = assets.Find(a => a.n.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
                 if (sums.u == null)
                 {
                     throw new Exception(T("这个版本没有校验文件 → 为安全起见不自动运行 ✗\n文件留着：",
@@ -536,6 +523,60 @@ namespace WardenOnlineSetup
             }
             _busy = false;
             Refresh();
+        }
+
+        private static string _assetWant = "";       // --asset 指定的文件名（留空=自动挑 ✓）
+        private static bool _includePre;             // --prerelease：连预发布一起看 ✓
+
+        /// <summary>★ 问 GitHub 要最新版（不写死版本号 ✓）返回 tag/name/资产表/来源说明 ✓</summary>
+        private static (string tag, string name, List<(string n, string u, long sz)> assets, string from) Resolve()
+        {
+            string json = _includePre ? "" : Curl(ApiLatest);
+            string from = _includePre ? "releases 列表（含预发布）" : "latest（正式版）";
+            if (!json.Contains("tag_name"))
+            {
+                string listing = Curl(ApiList);
+                int first = listing.IndexOf("\"tag_name\"");
+                int second = first >= 0 ? listing.IndexOf("\"tag_name\"", first + 10) : -1;
+                if (first < 0) { throw new Exception(T("查不到发布信息（没联网 / 需要代理 / 仓库里还没有发布 ✓）",
+                                                      "Could not read release info (offline / proxy / nothing released)")); }
+                json = second > first ? listing.Substring(first - 20, second - first + 20) : listing.Substring(first - 20);
+                from = "releases 列表（没有正式版 → 回退到最新的 ✓）";
+            }
+            var mt = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
+            var mn = Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
+            string tag = mt.Success ? mt.Groups[1].Value : "?";
+            string name = mn.Success ? mn.Groups[1].Value : tag;
+            var found = new List<(string n, string u, long sz)>();
+            foreach (Match mm in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
+            {
+                int at = mm.Index;
+                string head = json.Substring(Math.Max(0, at - 900), Math.Min(900, at));
+                Match n2 = Regex.Match(head, "\"name\"\\s*:\\s*\"([^\"]+)\"(?!.*\"name\")", RegexOptions.Singleline);
+                Match s2 = Regex.Match(head, "\"size\"\\s*:\\s*(\\d+)(?!.*\"size\")", RegexOptions.Singleline);
+                if (!n2.Success) { continue; }
+                found.Add((n2.Groups[1].Value, mm.Groups[1].Value, s2.Success ? long.Parse(s2.Groups[1].Value) : 0));
+            }
+            return (tag, name, found, from);
+        }
+
+        /// <summary>★ 挑哪个文件：--asset 优先 ✓ 否则挑安装包 ✓ 再否则第一个 exe ✓（不写死 ✓）</summary>
+        private static (string n, string u, long sz) Pick(List<(string n, string u, long sz)> found)
+        {
+            if (found.Count == 0) { return (null!, null!, 0); }
+            if (_assetWant.Length > 0)
+            {
+                var exact = found.Find(a => a.n.Equals(_assetWant, StringComparison.OrdinalIgnoreCase));
+                if (exact.n != null) { return exact; }
+                var wild = found.Find(a => a.n.IndexOf(_assetWant, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (wild.n != null) { return wild; }
+            }
+            var setup = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                                       && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (setup.n != null) { return setup; }
+            var exe = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+            if (exe.n != null) { return exe; }
+            return found[0];
         }
 
         private static string Curl(string url)
