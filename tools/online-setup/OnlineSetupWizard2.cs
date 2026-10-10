@@ -228,10 +228,10 @@ namespace WardenOnlineSetup
             int cy = h - 31;   // 客户区高度（减掉标题栏 ✓）`n            _hBar = Mk("msctls_progress32", "", 32, cy - 96, w - 64, 22, IntPtr.Zero);
             SendMessageW(_hBar, PBM_SETRANGE, IntPtr.Zero, (IntPtr)((100 << 16) | 0));
 
-            _hBack = Mk("BUTTON", T("上一步", "Back"), 32, cy - 52, 110, 34, _fBody);
-            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 152, cy - 52, 140, 34, _fBody);
-            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 520, cy - 52, 110, 34, _fBody);
-            _hNext = Mk("BUTTON", T("正在检查…", "Checking…"), 640, cy - 56, 148, 40, _fBody);
+            _hBack = Mk("BUTTON", T("上一步", "Back"), 32, cy - 52, 110, 34, _fBody, IDBACK);
+            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 152, cy - 52, 140, 34, _fBody, IDMANUAL);
+            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 520, cy - 52, 110, 34, _fBody, IDCANCELB);
+            _hNext = Mk("BUTTON", T("正在检查…", "Checking…"), 640, cy - 56, 148, 40, _fBody, IDNEXT);
 
             ShowWindow(_w, SW_SHOW);
             UpdateWindow(_w);
@@ -246,10 +246,10 @@ namespace WardenOnlineSetup
             return 0;
         }
 
-        private static IntPtr Mk(string cls, string text, int x, int y, int w, int h, IntPtr font)
+        private static IntPtr Mk(string cls, string text, int x, int y, int w, int h, IntPtr font, int id = 0)
         {
             IntPtr hh = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | WS_TABSTOP,
-                                        x, y, w, h, _w, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
+                                        x, y, w, h, _w, (IntPtr)id, GetModuleHandleW(null), IntPtr.Zero);   // ★ 控件 ID 在 hMenu 位 ✓
             if (font != IntPtr.Zero) { SendMessageW(hh, WM_SETFONT, font, (IntPtr)1); }
             return hh;
         }
