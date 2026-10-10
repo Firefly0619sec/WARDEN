@@ -1,3 +1,5 @@
+> English: [README.en.md](README.en.md)　·　日本語・繁體中文 待补
+
 # WARDEN
 
 **按行为特征识别并处置干扰性窗口的常驻看守。**

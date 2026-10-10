@@ -935,6 +935,39 @@ namespace WARDEN
                     }
                 }
 
+                // ★★★ 首次运行引导（C 系列·重要不紧急 —— 用户 2026-10-13 要求）
+                //   装完第一次启动时，用户其实不知道"它到底会干什么" ✗
+                //   问一个问题就够了：先观察（演习模式）还是立刻开始拦 ✓
+                if (!cfg.FirstRunDone)
+                {
+                    int fr = MessageBoxW(IntPtr.Zero,
+                        L.T("欢迎使用 WARDEN —— 先观察几天，还是立刻开始拦窗口？")
+                        + "\n\n"
+                        + L.T("「是」= 先开【演习模式】：只记日志、不动手（推荐 ✓ 先看清它会拦谁）")
+                        + "\n"
+                        + L.T("「否」= 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓")
+                        + "\n\n"
+                        + L.T("★ WARDEN 不联网、不注册，装完就能用 ✓"),
+                        L.T("WARDEN 首次运行"),
+                        0x00000004 /*MB_YESNO*/ | 0x00000040 /*MB_ICONINFORMATION*/);
+                    bool drill = fr == 6;   // IDYES
+                    cfg.Protect ??= new Protect();
+                    cfg.Protect.DryRun = drill;
+                    cfg.FirstRunDone = true;
+                    try
+                    {
+                        string fj = System.Text.Json.JsonSerializer.Serialize(
+                            cfg, GuardJsonContext.Default.GuardConfig);
+                        File.WriteAllText(ConfigPath, fj, new System.Text.UTF8Encoding(false));
+                        Log("[引导] 首次运行已引导 ✓ 演习模式=" + drill);
+                    }
+                    catch (Exception fex)
+                    {
+                        // ★ 写不进去也要继续守护 ✗ 但必须留痕迹 ✓
+                        Log("★ 首次运行引导写回配置失败（不影响守护）: " + fex.Message);
+                    }
+                }
+
                 // ★★★ 红队自测规则（用户 2026-10-10："用户可以自己查一下"）✓
                 //   只匹配我们自己的 WARDEN-RedTeam.exe ✓
                 //   自测工具单独只有 34 分，够不到动手门槛 55 ✗

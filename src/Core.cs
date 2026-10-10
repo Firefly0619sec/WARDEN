@@ -240,6 +240,13 @@ namespace WARDEN
         /// </summary>
         public string? Lang { get; set; }
 
+        /// <summary>
+        /// ★ 首次运行引导是否已经做过（用户 2026-10-13 要求 ✓）
+        ///   没做过 → 启动时问一次"先开演习模式还是立刻拦窗口"✓
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("first_run_done")]
+        public bool FirstRunDone { get; set; }
+
         public string? HardBlockNote { get; set; }
     }
 
