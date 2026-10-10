@@ -48,6 +48,9 @@ namespace WardenOnlineSetup
         // ---- 状态 ----
         private static volatile int _page;                 // 0 环境 1 下载 2 完成
         private static volatile int _percent;
+        private static readonly System.Diagnostics.Stopwatch nowWatch = System.Diagnostics.Stopwatch.StartNew();
+        private static double lastSec, speed;
+        private static long lastGot;
         private static volatile string _status = "", _err = "", _proxy = "", _file = "", _title = "";
         private static volatile bool _busy, _blocked;      // blocked = 环境不满足 → 不放行 ✗
         private static System.Collections.Generic.List<EnvItem> _env = new();
@@ -388,7 +391,21 @@ namespace WardenOnlineSetup
                         }
                         else if (_page == 2 && _file.Length > 0 && File.Exists(_file))
                         {
-                            ShellExecuteW(IntPtr.Zero, "open", _file, "", null, 1);
+                            // ★ 交接（用户要求 ✓）：拉起刚下好且校验通过的离线安装包
+                            //   成功 → 在线安装器自己关掉 ✓；失败 → 保留窗口并把路径交给用户 ✓
+                            IntPtr rc2 = ShellExecuteW(IntPtr.Zero, "open", _file, "", null, 1);
+                            if (rc2.ToInt64() > 32)
+                            {
+                                _status = T("✓ 已交给安装向导 —— 本窗口马上关闭 ✓", "✓ Handed over — closing");
+                                InvalidateRect(_w, IntPtr.Zero, true); UpdateWindow(_w);
+                                Thread.Sleep(500);
+                                DestroyWindow(h);
+                            }
+                            else
+                            {
+                                _err = T("★ 没能自动拉起安装向导 ✗ 可以手动双击：\n" + _file, "★ Could not launch it ✗ double-click:\n" + _file);
+                                InvalidateRect(_w, IntPtr.Zero, true); UpdateWindow(_w);
+                            }
                         }
                         else if (_blocked)
                         {
@@ -464,6 +481,13 @@ namespace WardenOnlineSetup
 
                 var cp = new ProcessStartInfo("curl.exe") { RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
                 cp.ArgumentList.Add("-L"); cp.ArgumentList.Add("--fail"); cp.ArgumentList.Add("--silent"); cp.ArgumentList.Add("--show-error");
+                // ★ 断点续传 + 自动重试 + 超时分离（大包别被过早掐死 ✓）
+                cp.ArgumentList.Add("-C"); cp.ArgumentList.Add("-");
+                cp.ArgumentList.Add("--retry"); cp.ArgumentList.Add("3");
+                cp.ArgumentList.Add("--retry-delay"); cp.ArgumentList.Add("2");
+                cp.ArgumentList.Add("--retry-all-errors");
+                cp.ArgumentList.Add("--connect-timeout"); cp.ArgumentList.Add("15");
+                cp.ArgumentList.Add("--max-time"); cp.ArgumentList.Add("1800");
                 cp.ArgumentList.Add("-A"); cp.ArgumentList.Add(UA);
                 if (_proxy.Length > 0) { cp.ArgumentList.Add("--proxy"); cp.ArgumentList.Add(_proxy); }
                 cp.ArgumentList.Add("-o"); cp.ArgumentList.Add(tmp); cp.ArgumentList.Add(pick.u);
@@ -473,9 +497,19 @@ namespace WardenOnlineSetup
                     long got = 0;
                     try { got = new FileInfo(tmp).Length; } catch { }
                     _percent = pick.sz > 0 ? (int)Math.Min(100, got * 100 / pick.sz) : 0;
+                    // ★ 速度 + 剩余时间（用户要求：不要只显示百分比 ✓）
+                    double sec = nowWatch.Elapsed.TotalSeconds;
+                    if (sec - lastSec > 0.25)
+                    {
+                        double inst = (got - lastGot) / 1048576.0 / Math.Max(0.001, sec - lastSec);
+                        if (inst > 0) { speed = inst; }
+                        lastGot = got; lastSec = sec;
+                    }
+                    double left = (speed > 0.05 && pick.sz > got) ? (pick.sz - got) / 1048576.0 / speed : 0;
+                    string eta = left > 0 ? T("   剩余约 ", "   about ") + (left >= 60 ? (left / 60).ToString("0") + T(" 分", " min") : left.ToString("0") + T(" 秒", " s")) : "";
                     _status = T("正在下载… ", "Downloading… ") + _percent + "%   ("
-                              + (got / 1048576.0).ToString("0.0") + " / " + (pick.sz / 1048576.0).ToString("0.0") + " MB)";
-                    Refresh();
+                              + (got / 1048576.0).ToString("0.0") + " / " + (pick.sz / 1048576.0).ToString("0.0") + " MB)"
+                              + "   " + speed.ToString("0.00") + " MB/s" + eta;
                     Thread.Sleep(300);
                 }
                 if (proc.ExitCode != 0) { throw new Exception(T("下载失败（curl ", "download failed (curl ") + proc.ExitCode + ")"); }
