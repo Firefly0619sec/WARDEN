@@ -80,10 +80,31 @@ namespace WardenSetup
         public static void Begin(string title)
         {
             Line("====", "================ " + title + " ================");
-            Line("====", "version=" + Program.Version
+            Line("====", "version=0.1.0-beta.1"
                 + "  os=" + Environment.OSVersion.VersionString
                 + "  clr=" + Environment.Version
                 + "  exe=" + Environment.ProcessPath);
+        }
+        /// <summary>
+        /// ★ 事故后补：把这次安装的日志取出来（向导第 3 页显示）✓
+        ///   直接从日志文件尾部读 —— 不再额外维护内存缓冲，少一处出错可能 ✓
+        /// </summary>
+        public static string Capture()
+        {
+            try
+            {
+                if (!File.Exists(FilePath))
+                {
+                    return string.Empty;
+                }
+                string all = File.ReadAllText(FilePath, Encoding.UTF8);
+                const int Keep = 6000;
+                return all.Length <= Keep ? all : all.Substring(all.Length - Keep);
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 }
