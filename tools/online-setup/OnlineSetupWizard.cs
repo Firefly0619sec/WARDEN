@@ -360,10 +360,17 @@ namespace WardenOnlineSetup
                 Post(WM_UPDATE);
 
                 var list2 = new System.Collections.Generic.List<(string n, string u, long sz)>();
-                foreach (Match mm in Regex.Matches(json,
-                         "\"name\"\\s*:\\s*\"([^\"]+)\"[^}]*?\"size\"\\s*:\\s*(\\d+)[^}]*?\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
+                // ★ 资产对象里有嵌套（uploader 等），原来用 [^}]*? 跨不过去 ✗
+                //   改成：按 browser_download_url 切 ✓ 再往前找最近的 name/size ✓ 稳 ✓
+                foreach (Match mm in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
                 {
-                    list2.Add((mm.Groups[1].Value, mm.Groups[3].Value, long.Parse(mm.Groups[2].Value)));
+                    int at = mm.Index;
+                    string head = json.Substring(Math.Max(0, at - 900), Math.Min(900, at));
+                    Match mn2 = Regex.Match(head, "\"name\"\\s*:\\s*\"([^\"]+)\"(?!.*\"name\")", RegexOptions.Singleline);
+                    Match ms2 = Regex.Match(head, "\"size\"\\s*:\\s*(\\d+)(?!.*\"size\")", RegexOptions.Singleline);
+                    if (!mn2.Success) { continue; }
+                    long sz = ms2.Success ? long.Parse(ms2.Groups[1].Value) : 0;
+                    list2.Add((mn2.Groups[1].Value, mm.Groups[1].Value, sz));
                 }
                 if (list2.Count == 0) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
                 var pick = list2.Find(a => a.n.Equals("WARDEN-Setup.exe", StringComparison.OrdinalIgnoreCase));
