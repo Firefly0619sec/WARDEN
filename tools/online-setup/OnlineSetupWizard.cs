@@ -125,6 +125,10 @@ namespace WardenOnlineSetup
                 switch (args[i])
                 {
                     case "--check": check = true; break;
+                    case "--env":
+                        var items = EnvCheckLite.Run(_proxy);
+                        EnvCheckLite.Print(items);
+                        return EnvCheckLite.CanProceed(items) ? 0 : 4;
                     case "--proxy": if (i + 1 < args.Length) { _proxy = args[++i]; } break;
                     case "--version": Console.WriteLine("WARDEN " + T("在线安装器", "online installer") + " " + Version); return 0;
                     case "-h":
@@ -132,6 +136,7 @@ namespace WardenOnlineSetup
                         Console.WriteLine("WARDEN " + T("在线安装器", "online installer") + " " + Version);
                         Console.WriteLine(T("  不带参数双击 = 向导窗口 ✓", "  No arguments = wizard window"));
                         Console.WriteLine("  --check        " + T("只检查新版本", "check only"));
+                        Console.WriteLine("  --env          " + T("只做环境检测（不安装 ✓）", "environment check only"));
                         Console.WriteLine("  --proxy <url>  " + T("走代理", "use a proxy"));
                         Console.WriteLine("  " + T("离线安装包：", "Offline installer: ") + Releases);
                         return 0;
