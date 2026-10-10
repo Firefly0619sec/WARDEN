@@ -42,8 +42,8 @@
     <FileVersion>0.1.0.0</FileVersion>
     <InformationalVersion>0.1.0-beta.1</InformationalVersion>
 
-    <!-- ★ 许可：GPL-3.0-or-later（已与用户确认） -->
-    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <!-- ★ 许可：AGPL-3.0-or-later（已与用户确认；2026-10-10 由 GPL 升级，堵 SaaS 云端规避） -->
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <Authors>Firefly0619sec</Authors>
     <Product>WARDEN</Product>
     <Description>窗口行为拦截工具 —— 依据窗口行为特征识别并处置干扰性弹窗</Description>

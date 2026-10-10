@@ -31,7 +31,7 @@
     <Version>0.1.0-beta.1</Version>
     <Product>WARDEN 设置工具</Product>
     <Authors>Firefly0619sec</Authors>
-    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
 
     <!-- ★ 不做 AOT（AOT 下 WinForms 不可用） -->
     <PublishAot>false</PublishAot>

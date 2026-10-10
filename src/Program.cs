@@ -729,7 +729,7 @@ namespace WARDEN
                     case "-v":
                         Emit("WARDEN " + Version);
                         Emit("Native AOT 构建，无外部运行时依赖");
-                        Emit("协议: GPL-3.0-or-later");
+                        Emit("协议: AGPL-3.0-or-later");
                         return true;
 
                     case "--help":

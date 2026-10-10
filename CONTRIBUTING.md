@@ -129,5 +129,5 @@ dotnet publish -c Release
 
 ## 六、许可
 
-本项目使用 **GPL-3.0-or-later**。
+本项目使用 **AGPL-3.0-or-later**。
 你提交的代码将以同一许可发布 —— 提交 PR 即表示你同意这一点。

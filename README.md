@@ -274,7 +274,7 @@ powershell -ExecutionPolicy Bypass -File <tools>\sign_files.ps1 -Path <文件> -
 ```
 WARDEN/
 ├── README.md                    本文件
-├── LICENSE                      GPL-3.0
+├── LICENSE                      AGPL-3.0
 ├── .gitignore
 ├── docs/                        设计文档
 ├── src/                         主程序（Native AOT）
@@ -318,6 +318,19 @@ WARDEN/
 
 ## 许可
 
-**GPL-3.0-or-later** —— 见 [LICENSE](LICENSE)。
+**AGPL-3.0-or-later** —— 见 [LICENSE](LICENSE)（2026-10-10 从 GPL-3.0 升级而来）。
+
+### 为什么是 AGPL 而不是 GPL
+
+GPL 的"开源义务"只在**分发**时触发 ✗
+→ 有人把 WARDEN 做成**云端服务**（用户连上去用，不给他二进制）
+   就能完整绕开 GPL，一行代码都不用开源 ✗✗
+
+AGPL 第 13 条（Remote Network Interaction）把触发点扩展到**通过网络交互** ✓
+→ 谁把 WARDEN 做成在线服务，谁就必须把源码提供给用它的用户 ✓
+→ 这对本项目的意义：拦截规则与判定逻辑是**用户能看见、能审计**的，
+   不会被某个"云版 WARDEN"黑箱拿走 ✗
+
+简单说：**自己用、改、分发都自由；但做成服务给别人用，也得开源** ✓
 
 简单说：你可以自由使用、修改、分发，但**衍生作品也必须以 GPL 开源**。
