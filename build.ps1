@@ -241,7 +241,7 @@ else {
 }
 
 # ③ 说明文件
-foreach ($doc in @('README.md', 'LICENSE', 'CHANGELOG.md')) {
+foreach ($doc in @('README.md', 'README.en.md', 'LICENSE', 'CHANGELOG.md', 'THIRD-PARTY-NOTICES.md')) {
     $p = Join-Path $root $doc
     if (Test-Path $p) { Copy-Item $p $dist -Force }
 }
@@ -249,7 +249,14 @@ foreach ($doc in @('README.md', 'LICENSE', 'CHANGELOG.md')) {
 # ④ 公钥证书（供用户验证发布物）
 $cert = Join-Path $root 'certs\Firefly0619sec-codesign.cer'
 if (Test-Path $cert) {
-    New-Item -ItemType Directory -Path (Join-Path $dist 'certs') -Force | Out-Null
+    # ★ 第三方声明目录也要随包（.NET 是 MIT，要求随分发保留声明）
+if (Test-Path (Join-Path $PSScriptRoot 'docs\第三方声明')) {
+    $td = Join-Path $dist '第三方声明'
+    New-Item -ItemType Directory -Path $td -Force | Out-Null
+    Copy-Item (Join-Path $PSScriptRoot 'docs\第三方声明\*') $td -Force -ErrorAction SilentlyContinue
+}
+
+New-Item -ItemType Directory -Path (Join-Path $dist 'certs') -Force | Out-Null
     Copy-Item $cert (Join-Path $dist 'certs') -Force
 }
 

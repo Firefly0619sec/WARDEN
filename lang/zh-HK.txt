@@ -426,3 +426,5 @@ WARDEN —— 常规手段已确认失效=WARDEN — normal measures have been c
 「否」= 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓=No = start blocking windows now (you can switch back any time on the Protection tab in Settings)
 ★ WARDEN 不联网、不注册，装完就能用 ✓=★ WARDEN is offline and needs no account — install and it works
 WARDEN 首次运行=WARDEN first run
+help.sec.license=開源許可
+help.sec.license.body=WARDEN 本體是 AGPL-3.0-or-later ✓ 你可以查看、修改、再分發 ✓（改動也要按 AGPL 開源 ✓）\n\n安裝包裏打包了 .NET 運行時 ✓ 它按 MIT 許可分發 ✗ 聲明原文在：\n  程序目錄\第三方聲明\ 與倉庫根目錄的 THIRD-PARTY-NOTICES.md ✓\n\n除此之外沒有任何第三方庫 ✓（零 NuGet 依賴 / 零統計廣告 SDK ✓）

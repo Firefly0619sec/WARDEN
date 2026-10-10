@@ -338,3 +338,5 @@ WARDEN 设置=WARDEN 设置
 第二段判据：至少隐藏多少次=第二段判据：至少隐藏多少次
 编辑规则=编辑规则
 行（最近的）=行（最近的）
+help.sec.license=开源许可
+help.sec.license.body=WARDEN 本体是 AGPL-3.0-or-later ✓ 你可以查看、修改、再分发 ✓（改动也要按 AGPL 开源 ✓）\n\n安装包里打包了 .NET 运行时 ✓ 它按 MIT 许可分发 ✗ 声明原文在：\n  程序目录\第三方声明\ 与仓库根目录的 THIRD-PARTY-NOTICES.md ✓\n\n除此之外没有任何第三方库 ✓（零 NuGet 依赖 / 零统计广告 SDK ✓）

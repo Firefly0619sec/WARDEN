@@ -100,6 +100,9 @@ namespace WardenHelp
             // ★ 教程内容全部来自语言包（翻译者改语言包就能出外语版）
             _sections = new (string, string)[]
             {
+                // ★ 开源许可（用户 2026-10-11 要求：应用内也要有声明）
+                (WardenLang.Lang.T("help.sec.license"),
+                 WardenLang.Lang.T("help.sec.license.body")),
                 (Lang.T("help.sec.quick.title"),    Lang.T("help.sec.quick.body")),
                 (Lang.T("help.sec.tray.title"),     Lang.T("help.sec.tray.body")),
                 (Lang.T("help.sec.blocked.title"),  Lang.T("help.sec.blocked.body")),
