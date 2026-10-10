@@ -143,6 +143,17 @@ namespace WardenSetup
                     Installer.MakeLnk(Path.Combine(Installer.DesktopDir, "WARDEN.lnk"),
                                       exe, "", "WARDEN —— 窗口行为拦截工具", dir);
                 }
+                else
+                {
+                    // ★ 取消勾选时，把上一次装出来的桌面快捷方式也清掉 ✓
+                    //   （否则用户以为"没选就没有"，桌面上却还留着一个 ✗）
+                    try
+                    {
+                        string stale = Path.Combine(Installer.DesktopDir, "WARDEN.lnk");
+                        if (File.Exists(stale)) { File.Delete(stale); L("已清掉旧的桌面快捷方式 ✓"); }
+                    }
+                    catch { }
+                }
                 L("快捷方式: 开始菜单 ✓" + (desktop ? "  桌面 ✓" : "  桌面（未选）"));
 
                 RegisterUninstall(dir);

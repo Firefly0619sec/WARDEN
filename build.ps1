@@ -40,6 +40,24 @@ function Assert-SafeDelete([string]$Path) {
 #     powershell -ExecutionPolicy Bypass -File build.ps1 -SkipSign     只编译不签名
 #     powershell -ExecutionPolicy Bypass -File build.ps1 -NoBuild      只签名不编译
 
+
+# ---------------------------------------------------------------------------
+# ★ 安全网（事故后新增 2026-10-10）：
+#   有些工具的源码在"仓库被清空"事故里丢了 ✗（settings/logview/updater/uninstaller）
+#   → 这里先查一遍，缺源码的就跳过并明确提示，绝不让整个构建崩掉 ✓
+# ---------------------------------------------------------------------------
+$toolDirs = @('settings','logview','updater','uninstaller','help','setup')
+foreach ($td in $toolDirs) {
+    $tp = Join-Path $PSScriptRoot ("tools\" + $td)
+    if (-not (Test-Path $tp)) { Write-Host ("  · tools\" + $td + " 不存在，跳过") -ForegroundColor DarkGray; continue }
+    $proj = Get-ChildItem $tp -Filter '*.csproj' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $cs   = Get-ChildItem $tp -Filter '*.cs' -ErrorAction SilentlyContinue
+    if (-not $proj -or $cs.Count -eq 0) {
+        Write-Host ("  ★ tools\" + $td + " 源码缺失，跳过（事故遗留，见 README 的恢复说明）") -ForegroundColor Yellow
+        continue
+    }
+    Write-Host ("  ✓ tools\" + $td + " 源码在（" + $cs.Count + " 个 .cs）") -ForegroundColor DarkGray
+}
 param(
     [switch]$SkipSign,
     [switch]$NoBuild
