@@ -340,3 +340,21 @@ WARDEN 设置=WARDEN Settings
 第二段判据：至少隐藏多少次=Stage-2 criteria: minimum number of hides
 编辑规则=Edit rule
 行（最近的）=lines (most recent)
+导出规则=Export rules
+导入规则=Import rules
+现在还没有规则可以导出。=There are no rules to export yet.
+导出当前规则到文件=Export the current rules to a file
+已导出：\n=Exported:\n
+ 条规则= rules
+导出失败：\n=Export failed:\n
+从文件导入规则=Import rules from a file
+读不了这个文件：\n=Cannot read this file:\n
+这不是 WARDEN 规则文件（里面没有 rules 段）。=This is not a WARDEN rules file (no "rules" section inside).
+没有可导入的规则。=No importable rules found.
+ 条规则：\n\n「是」= 追加到现有规则\n「否」= 替换现有规则\n「取消」= 什么都不做= rules:\n\nYes = append to the existing rules\nNo = replace the existing rules\nCancel = do nothing
+导入完成：新增 =Import finished: 
+ 条= added
+，跳过 =, skipped 
+ 条（缺少名称或匹配条件）= (missing a name or match criteria)
+记得点「保存配置」才会生效 ✓=Remember to click "Save settings" to apply ✓
+★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。=★ Tick = enable this rule. Fill in at least one of \"process\" or \"title keywords\".

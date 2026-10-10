@@ -981,6 +981,8 @@ namespace WARDEN
                 {
                     // ① 全屏红警：告诉用户"我们被打了"并给几个强硬选项 ✓
                     EmergencyWarning.Show(kind);
+    // ★ B6：应急时托盘变红（一眼看出正在压制 ✓）
+    try { _tray?.SetState(TrayIcon.TrayState.Emergency); } catch { }
                     // ② 再走原有的"被干扰"告警：它负责把证据写进 TAMPER.log ✓
                     SelfProtect.AlertTamper("emergency-" + kind);
                 };
@@ -1136,6 +1138,15 @@ namespace WARDEN
                     }
 
                     // ★ 暂停中 → 跳过这一轮扫描（但消息照常处理 ✓）
+                    // ★ B6：托盘图标跟着状态走（黄=暂停，原色=守护中）
+                    //   应急压制期间【不动】—— 那时是红色 ✓
+                    if (!Emergency.Active && _tray != null)
+                    {
+                        _tray.SetState(_tray.IsPaused
+                            ? TrayIcon.TrayState.Paused
+                            : TrayIcon.TrayState.Normal);
+                    }
+
                     if (_tray != null && _tray.IsPaused)
                     {
                         Stage("一轮扫完");

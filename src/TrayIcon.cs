@@ -156,6 +156,93 @@ namespace WARDEN
         /// <summary>★ 用户点了"暂停"。true 表示当前暂停中。</summary>
         public bool IsPaused { get; private set; }
 
+        /// <summary>★ B6：托盘状态（正常 / 暂停 / 应急）✓</summary>
+        public enum TrayState
+        {
+            Normal,
+            Paused,
+            Emergency,
+        }
+
+        /// <summary>★ B6：当前状态 ✓</summary>
+        public TrayState State { get; private set; } = TrayState.Normal;
+
+        /// <summary>
+        /// ★ B6：切换托盘状态 —— 换图标 + 换提示文字 ✓
+        ///   【为什么要换图标】托盘图标是用户唯一一直看得见的东西 ✓
+        ///     光靠提示文字不行（要鼠标移上去才看到 ✗）
+        ///     绿色/原色 = 守护中；黄色 = 暂停；红色 = 应急压制中 ✓
+        ///   图标文件载入失败 → 用回原图标并记日志（绝不静默 ✗）
+        /// </summary>
+        public void SetState(TrayState st)
+        {
+            State = st;
+            string want;
+            string tip;
+            switch (st)
+            {
+                case TrayState.Paused:
+                    want = "-paused";
+                    tip = "WARDEN（已暂停守护）";
+                    break;
+                case TrayState.Emergency:
+                    want = "-emergency";
+                    tip = "WARDEN（应急压制中）";
+                    break;
+                default:
+                    want = "";
+                    tip = "WARDEN（守护中）";
+                    break;
+            }
+
+            // 换图标（找不到对应文件就用原来的 ✓）
+            try
+            {
+                string path = _iconPath;
+                if (want.Length > 0 && path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path.Substring(0, path.Length - 4) + want + ".ico";
+                }
+                IntPtr h = IntPtr.Zero;
+                if (File.Exists(path))
+                {
+                    h = LoadImageW(IntPtr.Zero, path, IMAGE_ICON, 0, 0,
+                                   LR_LOADFROMFILE | LR_DEFAULTSIZE);
+                }
+                if (h == IntPtr.Zero)
+                {
+                    _log("[托盘] 状态图标不可用（" + path + "），沿用当前图标 ✓");
+                }
+                else
+                {
+                    IntPtr old = _hIcon;
+                    _hIcon = h;
+                    var d = new NOTIFYICONDATA
+                    {
+                        cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATA>(),
+                        hWnd = _hwnd,
+                        uID = 1,
+                        uFlags = NIF_ICON,
+                        hIcon = _hIcon,
+                    };
+                    if (!Shell_NotifyIconW(NIM_MODIFY, ref d))
+                    {
+                        _log("[托盘] 换图标失败（Shell_NotifyIcon NIM_MODIFY）✗");
+                    }
+                    if (old != IntPtr.Zero)
+                    {
+                        DestroyIcon(old);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _log("[托盘] 换图标异常: " + e.Message);
+            }
+
+            SetTooltip(tip);
+        }
+
         /// <summary>用户点了"重新加载配置"。</summary>
         public bool ReloadRequested { get; set; }
 

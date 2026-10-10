@@ -347,8 +347,178 @@ namespace WardenSettings
             btnEdit.Click += (s, e) => EditRuleDialog();
             b.Controls.Add(btnEdit);
 
-            b.Controls.Add(Lbl("★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。",
-                               345, 447, 440));
+            // ★ B5：规则导入 / 导出（用户 2026-10-13 之前提的需求 ✓）
+            var btnExport = new Button
+            {
+                Text = WardenLang.Lang.Tr("导出规则"),
+                Location = new Point(345, 440),
+                Size = new Size(105, 30),
+            };
+            btnExport.Click += (s, e) => ExportRules();
+            b.Controls.Add(btnExport);
+
+            var btnImport = new Button
+            {
+                Text = WardenLang.Lang.Tr("导入规则"),
+                Location = new Point(458, 440),
+                Size = new Size(105, 30),
+            };
+            btnImport.Click += (s, e) => ImportRules();
+            b.Controls.Add(btnImport);
+
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。"),
+                               10, 480, 700));   // ★ 挪到按钮下面一行（原来被挡住 ✗）
+        }
+
+
+        /// <summary>
+        /// ★ B5：把当前规则导出成一个 json 文件 ✓
+        ///   【为什么要能导出】换机器 / 备份 / 把规则分享给别人 ✓
+        ///   格式自带标识（warden-rules/1）→ 以后改格式也能认出来 ✓
+        /// </summary>
+        private void ExportRules()
+        {
+            if (_lvRules.Items.Count == 0)
+            {
+                MessageBox.Show(WardenLang.Lang.Tr("现在还没有规则可以导出。"), "WARDEN 设置",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            using var dlg = new SaveFileDialog
+            {
+                Title = WardenLang.Lang.Tr("导出当前规则到文件"),
+                Filter = "WARDEN *|*.json",
+                FileName = "WARDEN-rules-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".json",
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("{");
+                sb.AppendLine("  \"_说明\": [");
+                sb.AppendLine("    \"WARDEN 规则导出文件 —— 可用设置界面的「导入规则」读回\",");
+                sb.AppendLine("    \"改坏了也没关系：导入时不合法的条目会被跳过并告诉你\"");
+                sb.AppendLine("  ],");
+                sb.AppendLine("  \"format\": \"warden-rules/1\",");
+                sb.AppendLine("  \"rules\": [");
+                for (int i = 0; i < _lvRules.Items.Count; i++)
+                {
+                    var it = _lvRules.Items[i];
+                    var kws = it.SubItems[3].Text
+                        .Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+                    sb.Append("    {\"name\": ").Append(J(it.SubItems[1].Text));
+                    sb.Append(", \"process\": ").Append(J(it.SubItems[2].Text));
+                    sb.Append(", \"title_contains\": ").Append(JArr(kws));
+                    sb.Append(", \"enabled\": ").Append(it.Checked ? "true" : "false");
+                    sb.Append("}").AppendLine(i == _lvRules.Items.Count - 1 ? "" : ",");
+                }
+                sb.AppendLine("  ]");
+                sb.AppendLine("}");
+                File.WriteAllText(dlg.FileName, sb.ToString(), new UTF8Encoding(false));
+                MessageBox.Show(
+                    WardenLang.Lang.Tr("已导出：\n") + dlg.FileName + "\n\n"
+                    + _lvRules.Items.Count + WardenLang.Lang.Tr(" 条规则"),
+                    "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(WardenLang.Lang.Tr("导出失败：\n") + ex.Message, "WARDEN 设置",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// ★ B5：从 json 文件导入规则 ✓
+        ///   校验：必须有 rules 段；每条要有名称，且进程名或标题关键词至少一个 ✓
+        ///   不合法的不静默丢弃 ✗ —— 报告"导入几条、跳过几条"✓
+        /// </summary>
+        private void ImportRules()
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = WardenLang.Lang.Tr("从文件导入规则"),
+                Filter = "WARDEN *|*.json",
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            string json;
+            try
+            {
+                json = File.ReadAllText(dlg.FileName, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(WardenLang.Lang.Tr("读不了这个文件：\n") + ex.Message, "WARDEN 设置",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (!json.Contains("\"rules\""))
+            {
+                MessageBox.Show(
+                    WardenLang.Lang.Tr("这不是 WARDEN 规则文件（里面没有 rules 段）。"),
+                    "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var good = new List<(string name, string proc, string kws, bool en)>();
+            int skipped = 0;
+            foreach (var blk in RegexBlocks(json, "rules"))
+            {
+                string name = JsonStr(blk, "name", "");
+                string proc = JsonStr(blk, "process", "");
+                var kws = JsonStrArray(blk, "title_contains");
+                if (name.Length == 0 || (proc.Length == 0 && kws.Count == 0))
+                {
+                    skipped++;
+                    continue;
+                }
+                good.Add((name, proc, string.Join(", ", kws), JsonBool(blk, "enabled", true)));
+            }
+
+            if (good.Count == 0)
+            {
+                MessageBox.Show(WardenLang.Lang.Tr("没有可导入的规则。"), "WARDEN 设置",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var ans = MessageBox.Show(
+                good.Count + WardenLang.Lang.Tr(" 条规则：\n\n「是」= 追加到现有规则\n"
+                + "「否」= 替换现有规则\n「取消」= 什么都不做"),
+                "WARDEN 设置", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (ans == DialogResult.Cancel)
+            {
+                return;
+            }
+            if (ans == DialogResult.No)
+            {
+                _lvRules.Items.Clear();
+            }
+
+            foreach (var g in good)
+            {
+                var it = new ListViewItem("");
+                it.SubItems.Add(g.name);
+                it.SubItems.Add(g.proc);
+                it.SubItems.Add(g.kws);
+                it.Checked = g.en;
+                _lvRules.Items.Add(it);
+            }
+
+            MessageBox.Show(
+                WardenLang.Lang.Tr("导入完成：新增 ") + good.Count
+                + WardenLang.Lang.Tr(" 条") + (skipped > 0
+                    ? WardenLang.Lang.Tr("，跳过 ") + skipped
+                      + WardenLang.Lang.Tr(" 条（缺少名称或匹配条件）") : "")
+                + "\n\n" + WardenLang.Lang.Tr("记得点「保存配置」才会生效 ✓"),
+                "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
