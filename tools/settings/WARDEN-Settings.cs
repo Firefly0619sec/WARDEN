@@ -356,7 +356,7 @@ namespace WardenSettings
         /// </summary>
         private void AddRuleDialog()
         {
-            using (var dlg = new RuleDialog("新增规则", "", "", ""))
+            using (var dlg = new RuleDialog(WardenLang.Lang.Tr("新增规则"), "", "", ""))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
@@ -381,7 +381,7 @@ namespace WardenSettings
                 return;
             }
             var it = _lvRules.SelectedItems[0];
-            using (var dlg = new RuleDialog("编辑规则", it.SubItems[1].Text,
+            using (var dlg = new RuleDialog(WardenLang.Lang.Tr("编辑规则"), it.SubItems[1].Text,
                                             it.SubItems[2].Text, it.SubItems[3].Text))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
@@ -403,12 +403,12 @@ namespace WardenSettings
             Panel b;
             NewTab(WardenLang.Lang.T("set.tab.protect"), out b);
             int y = 10;
-            _ckFg = Chk("当前活动窗口不处理（skip_if_foreground）", 10, y, true); b.Controls.Add(_ckFg); y += 34;
-            _ckEdit = Chk("含输入框的窗口不处理（skip_if_has_edit）", 10, y, true); b.Controls.Add(_ckEdit); y += 34;
-            _ckChild = Chk("含子控件的窗口不处理（skip_if_has_child_window）", 10, y, true); b.Controls.Add(_ckChild); y += 34;
-            _ckDry = Chk("★ 演习模式：只记日志不真动手（dry_run）", 10, y, true); b.Controls.Add(_ckDry); y += 46;
-            b.Controls.Add(Lbl("★ 建议：第一次用先开着演习模式跑几天，", 10, y, 600)); y += 24;
-            b.Controls.Add(Lbl("   看日志里它打算关谁，确认没有误伤，再关掉演习模式。", 10, y, 600));
+            _ckFg = Chk(WardenLang.Lang.Tr("当前活动窗口不处理（skip_if_foreground）"), 10, y, true); b.Controls.Add(_ckFg); y += 34;
+            _ckEdit = Chk(WardenLang.Lang.Tr("含输入框的窗口不处理（skip_if_has_edit）"), 10, y, true); b.Controls.Add(_ckEdit); y += 34;
+            _ckChild = Chk(WardenLang.Lang.Tr("含子控件的窗口不处理（skip_if_has_child_window）"), 10, y, true); b.Controls.Add(_ckChild); y += 34;
+            _ckDry = Chk(WardenLang.Lang.Tr("★ 演习模式：只记日志不真动手（dry_run）"), 10, y, true); b.Controls.Add(_ckDry); y += 46;
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("★ 建议：第一次用先开着演习模式跑几天，"), 10, y, 600)); y += 24;
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("   看日志里它打算关谁，确认没有误伤，再关掉演习模式。"), 10, y, 600));
         }
 
         // ---------------------------------------------------------------- 处置
@@ -420,30 +420,30 @@ namespace WardenSettings
             Panel b;
             NewTab(WardenLang.Lang.T("set.tab.action"), out b);
             int y = 10;
-            _ckTerm = Chk("允许使用强制手段（allow_terminate）", 10, y, false); b.Controls.Add(_ckTerm); y += 42;
+            _ckTerm = Chk(WardenLang.Lang.Tr("允许使用强制手段（allow_terminate）"), 10, y, false); b.Controls.Add(_ckTerm); y += 42;
 
-            b.Controls.Add(Lbl("动手门槛（分数达到才处理）", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("动手门槛（分数达到才处理）"), 10, y, 250));
             _numApply = Num(270, y, 55, 1, 200); b.Controls.Add(_numApply); y += 32;
-            b.Controls.Add(Lbl("强杀门槛（分数达到才考虑强杀）", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("强杀门槛（分数达到才考虑强杀）"), 10, y, 250));
             _numTermTh = Num(270, y, 75, 1, 300); b.Controls.Add(_numTermTh); y += 42;
 
-            b.Controls.Add(Lbl("同一窗口失败几次才升级手段", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("同一窗口失败几次才升级手段"), 10, y, 250));
             _numFail = Num(270, y, 3, 1, 50); b.Controls.Add(_numFail); y += 32;
-            b.Controls.Add(Lbl("失败几次后才弹窗询问（受保护进程）", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("失败几次后才弹窗询问（受保护进程）"), 10, y, 250));
             _numAsk = Num(270, y, 6, 1, 200); b.Controls.Add(_numAsk); y += 42;
 
-            b.Controls.Add(Lbl("第二段判据：至少隐藏多少次", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("第二段判据：至少隐藏多少次"), 10, y, 250));
             _numHides = Num(270, y, 8, 1, 200); b.Controls.Add(_numHides); y += 32;
-            b.Controls.Add(Lbl("第二段兜底等待（毫秒）", 10, y, 250));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("第二段兜底等待（毫秒）"), 10, y, 250));
             _numWait = Num(270, y, 6000, 1000, 60000); b.Controls.Add(_numWait); y += 44;
 
-            _ckPrompt = Chk("允许弹窗询问用户（allow_consent_prompt）", 10, y, true); b.Controls.Add(_ckPrompt); y += 30;
+            _ckPrompt = Chk(WardenLang.Lang.Tr("允许弹窗询问用户（allow_consent_prompt）"), 10, y, true); b.Controls.Add(_ckPrompt); y += 30;
             _ckHonorSig = Chk("遵守\"有合法签名的进程不直接强杀\"（honor_signatures）", 10, y, true); b.Controls.Add(_ckHonorSig); y += 30;
             _ckHonorWl = Chk("遵守\"白名单进程不直接强杀\"（honor_whitelist_for_kill）", 10, y, true); b.Controls.Add(_ckHonorWl); y += 40;
 
             b.Controls.Add(Lbl("★ 说明：第二段弹窗现在是按\"追不上\"判断的 ——", 10, y, 700)); y += 24;
-            b.Controls.Add(Lbl("   已隐藏够多次但窗口数没减少，就立刻弹（几秒内），", 10, y, 700)); y += 24;
-            b.Controls.Add(Lbl("   上面那个毫秒值只是兜底上限。", 10, y, 700));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("   已隐藏够多次但窗口数没减少，就立刻弹（几秒内），"), 10, y, 700)); y += 24;
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("   上面那个毫秒值只是兜底上限。"), 10, y, 700));
         }
 
         // ---------------------------------------------------------------- 名单
@@ -456,7 +456,7 @@ namespace WardenSettings
             Panel b;
             NewTab(WardenLang.Lang.T("set.tab.lists"), out b);
 
-            b.Controls.Add(Lbl("白名单（这些进程永不处理，一行一个）", 8, 8, 380));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("白名单（这些进程永不处理，一行一个）"), 8, 8, 380));
             _txtWl = new TextBox
             {
                 Multiline = true,
@@ -466,7 +466,7 @@ namespace WardenSettings
             };
             b.Controls.Add(_txtWl);
 
-            b.Controls.Add(Lbl("永久允许强杀（一行一个）", 400, 8, 380));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("永久允许强杀（一行一个）"), 400, 8, 380));
             _txtConsent = new TextBox
             {
                 Multiline = true,
@@ -490,7 +490,7 @@ namespace WardenSettings
             btnClear.Click += (s, e) => _txtTermHist.Text = "";
             b.Controls.Add(btnClear);
 
-            b.Controls.Add(Lbl("★ 清空后：如果同一个程序再次出现，", 400, 256, 380));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("★ 清空后：如果同一个程序再次出现，"), 400, 256, 380));
             b.Controls.Add(Lbl("   弹窗不会再推荐\"永久允许强杀\"。", 400, 280, 380));
         }
 
@@ -504,12 +504,12 @@ namespace WardenSettings
             Panel b;
             NewTab(WardenLang.Lang.T("set.tab.safety"), out b);
             int y = 10;
-            var ckSelf = Chk("启动时自校验（防止程序被调包）", 10, y, true); b.Controls.Add(ckSelf);
+            var ckSelf = Chk(WardenLang.Lang.Tr("启动时自校验（防止程序被调包）"), 10, y, true); b.Controls.Add(ckSelf);
             _ckSelfRef = ckSelf; y += 34;
-            var ckBlock = Chk("★ 自校验失败时拒绝运行（拉停）", 10, y, true); b.Controls.Add(ckBlock);
+            var ckBlock = Chk(WardenLang.Lang.Tr("★ 自校验失败时拒绝运行（拉停）"), 10, y, true); b.Controls.Add(ckBlock);
             _ckBlockRef = ckBlock; y += 46;
 
-            b.Controls.Add(Lbl("期望的自身哈希（签名脚本会写入）", 10, y, 400)); y += 24;
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("期望的自身哈希（签名脚本会写入）"), 10, y, 400)); y += 24;
             _txtHash = new TextBox { Location = new Point(10, y), Size = new Size(600, 24) };
             b.Controls.Add(_txtHash); y += 32;
 
@@ -517,7 +517,7 @@ namespace WardenSettings
             btnCalc.Click += (s, e) => FillHash();
             b.Controls.Add(btnCalc); y += 46;
 
-            b.Controls.Add(Lbl("── 硬黑名单（系统关键进程，永不强杀，不可修改）──", 10, y, 620)); y += 24;
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("── 硬黑名单（系统关键进程，永不强杀，不可修改）──"), 10, y, 620)); y += 24;
             _txtHard = new TextBox
             {
                 Multiline = true,
@@ -567,7 +567,7 @@ namespace WardenSettings
             };
             _numLines.ValueChanged += (s, e) => RefreshLog();
             b.Controls.Add(_numLines);
-            b.Controls.Add(Lbl("行（最近的）", 194, 6, 90));
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("行（最近的）"), 194, 6, 90));
 
             var btnOpen = new Button { Text = WardenLang.Lang.Tr("打开日志所在文件夹"), Location = new Point(290, 0), Size = new Size(170, 28) };
             btnOpen.Click += (s, e) =>
