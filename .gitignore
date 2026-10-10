@@ -64,3 +64,11 @@ WARDEN.lock
 #   因为被排除的【目录】里的文件无法用 ! 恢复 ✓
 #   —— 这正是我们想要的行为 ✓
 
+
+# ★ 构建产物与交付物不进版本库（2026-10-13）
+#   为什么：它们每个几十 MB ✗ 而且每次构建都变 ✓
+#   发布时作为 Release 附件上传 ✓ 而不是塞进 git ×
+dist/
+tools/setup/payload.zip
+WARDEN-Setup*.exe
+*.zip

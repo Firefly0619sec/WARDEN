@@ -1,0 +1,45 @@
+name: 问题报告（有东西坏了）
+description: 报告一个可复现的问题
+title: "[问题] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈 ✓ 请尽量把「做了什么 / 期望什么 / 实际发生什么」写清楚。
+        ★ 提交前请把路径里的用户名打码 ✓
+  - type: input
+    id: version
+    attributes:
+      label: WARDEN 版本
+      description: 设置界面底部 / WARDEN.exe --version
+      placeholder: 0.1.0-beta.1
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 系统版本
+      placeholder: Windows 10 22H2 / Windows 11 23H2
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 复现步骤
+      description: 做了什么 → 期望什么 → 实际发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: 相关日志
+      description: 设置界面 → 日志页 → 复制；或用「日志查看器」导出报告 ✓
+      render: text
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 确认
+      options:
+        - label: 我确认日志里没有我的真实用户名/手机号等隐私信息
+          required: true

@@ -423,3 +423,8 @@ WARDEN —— 常规手段已确认失效=WARDEN — normal measures have been c
 窗口：=Window: 
 位置：=Path: 
 (未知)=(unknown)
+欢迎使用 WARDEN —— 先观察几天，还是立刻开始拦窗口？=Welcome to WARDEN — watch for a few days first, or start blocking right away?
+「是」= 先开【演习模式】：只记日志、不动手（推荐 ✓ 先看清它会拦谁）=Yes = start in drill mode: log only, never act (recommended — see what it would block first)
+「否」= 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓=No = start blocking windows now (you can switch back any time on the Protection tab in Settings)
+★ WARDEN 不联网、不注册，装完就能用 ✓=★ WARDEN is offline and needs no account — install and it works
+WARDEN 首次运行=WARDEN first run

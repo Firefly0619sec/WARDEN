@@ -1,0 +1,20 @@
+name: 功能建议
+description: 想要一个新功能 / 觉得哪里不好用
+title: "[建议] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 先说问题，再说方案 —— 这样我可能想出更合适的做法 ✓
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你的想法（可选）
+  - type: textarea
+    id: impl
+    attributes:
+      label: 实现思路（可选，懂技术再填）
