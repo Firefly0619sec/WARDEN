@@ -1,0 +1,5 @@
+EBFB6B895D8EEC8F59CE0A26E23876CBBDAE330F
+# 短 ID: E23876CBBDAE330F
+# 拥有者: Firefly0619sec <311097656+Firefly0619sec@users.noreply.github.com>
+# 用途: 1) 校验 WARDEN 停止文件签名  2) 加密反馈内容（只有拥有者能解）
+# ★ 这是公钥，公开无害；私钥永远不进仓库

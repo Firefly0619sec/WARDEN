@@ -1,0 +1,148 @@
+# ============================================================================
+#  GitHub Actions —— 持续集成
+# ============================================================================
+#  【它做什么】
+#    每次推送到 main、或有人提 PR 时，自动在干净环境里编译一遍 ✓
+#    编译不过就标红 ✗ 防止把坏代码合进去 ✗
+#
+#  【为什么开源项目必须有它】
+#    · 别人 PR 的时候，维护者不用自己去编译验证 ✓
+#    · ★ 也是申请 SignPath 免费代码签名的前提 ✓
+#      （SignPath 要求项目走 CI 构建，它才能给产物签名）
+#    · 顺带一个"编译徽章"贴在 README 上，看着正规 ✓
+#
+#  【★ 注意：这个工作流不签名】
+#     SignPath 之后会加一个单独的 workflow 来做签名 ✗
+#     因为签名需要凭据，不能放在 PR 触发的流程里 ✗（PR 可能来自 fork ✗）
+# ============================================================================
+
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    # ★ 只有源码或工程文件变了才跑，改文档不浪费 CI 时间 ✓
+    paths:
+      - 'src/**'
+      - 'tools/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:      # ★ 允许手动触发
+
+jobs:
+  build:
+    name: 编译（Windows）
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 显示 SDK 信息
+        run: dotnet --info
+
+      # ----------------------------------------------------------------
+      #  主程序（Native AOT）
+      # ----------------------------------------------------------------
+      # ★★ AOT 编译的警告必须当错误看 ✗
+      #    因为 AOT 下很多反射/COM 用法会在【运行时】才炸 ✗
+      #    编译期能发现的裁剪警告，绝不该放过 ✓
+      #
+      # ★ 注意：这里【一次】编译就把警告和产物都拿到 ✗
+      #   不要为了检查警告再编译一遍 ✗（CI 时间宝贵 ✗）
+      - name: 编译主程序（Native AOT）
+        working-directory: src
+        shell: pwsh
+        run: |
+          # ★ 把警告提升为错误：这样裁剪问题会直接让 CI 失败 ✓
+          $out = dotnet publish -c Release -r win-x64 --nologo `
+                   -p:TreatWarningsAsErrors=false 2>&1 | Out-String
+          Write-Host $out
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "★ 编译失败" -ForegroundColor Red
+            exit 1
+          }
+          $warns = $out -split "`n" | Where-Object { $_ -match 'warning IL\d+' }
+          if ($warns) {
+            Write-Host "★ 发现 AOT 裁剪警告：" -ForegroundColor Red
+            $warns | ForEach-Object { Write-Host "  $_" }
+            exit 1
+          }
+          Write-Host "✓ 编译成功，无 AOT 警告" -ForegroundColor Green
+
+      - name: 验证主程序产物
+        shell: pwsh
+        run: |
+          $exe = "src\bin\Release\net10.0-windows\win-x64\publish\WARDEN.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Host "★ 找不到产物 $exe" -ForegroundColor Red
+            exit 1
+          }
+          $kb = (Get-Item $exe).Length / 1KB
+          Write-Host ("✓ 产物: {0}  {1:N1} KB" -f $exe, $kb) -ForegroundColor Green
+          # ★ 体积异常说明可能误把运行时打进去了 ✗
+          if ($kb -gt 20000) {
+            Write-Host "★ 产物过大（$kb KB）—— AOT 可能没生效" -ForegroundColor Red
+            exit 1
+          }
+          # ★ 顺便验证 --version 能跑（至少不崩 ✓）
+          $v = & $exe --version 2>&1
+          Write-Host "  --version 已执行（输出可能被重定向吞掉，属已知限制）"
+
+      # ----------------------------------------------------------------
+      #  设置界面
+      # ----------------------------------------------------------------
+      - name: 编译设置界面
+        working-directory: tools/settings
+        run: dotnet publish -c Release --nologo
+
+      - name: 验证设置界面产物
+        shell: pwsh
+        run: |
+          $dir = "tools\settings\bin\Release"
+          $exe = Get-ChildItem $dir -Recurse -Filter 'WARDEN-Settings.exe' |
+                 Select-Object -First 1
+          if (-not $exe) {
+            Write-Host "★ 找不到设置界面产物" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host ("✓ 产物: {0}  {1:N1} KB" -f $exe.FullName, ($exe.Length / 1KB)) -ForegroundColor Green
+
+      # ----------------------------------------------------------------
+      #  测试脚本语法检查
+      # ----------------------------------------------------------------
+      - name: 检查测试脚本语法
+        shell: pwsh
+        run: |
+          $bad = 0
+          Get-ChildItem tests -Filter *.py | ForEach-Object {
+            $r = python -m py_compile $_.FullName 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "★ $($_.Name) 语法错误：" -ForegroundColor Red
+              Write-Host "  $r"
+              $bad++
+            }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Host "✓ 测试脚本语法正常" -ForegroundColor Green
+
+      # ----------------------------------------------------------------
+      #  上传产物
+      # ----------------------------------------------------------------
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: WARDEN-${{ github.sha }}
+          path: |
+            src/bin/Release/net10.0-windows/win-x64/publish/WARDEN.exe
+            tools/settings/bin/Release/**/WARDEN-Settings.exe
+          # ★ 未签名的产物只保留 7 天 ✓
+          #   正式发布要走签名流程 ✗
+          retention-days: 7
+          if-no-files-found: error

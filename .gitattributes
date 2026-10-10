@@ -1,0 +1,65 @@
+# ============================================================================
+#  换行符与二进制文件处理
+# ============================================================================
+#  ★ 为什么需要 .gitattributes：
+#      Windows 用 CRLF，Linux/macOS 用 LF ✗
+#      不声明的话：
+#        · 跨平台拉下来会出现"整个文件都改了"的假 diff ✗
+#        · 编译出的产物可能不一致 ✗
+#        · 图片等二进制文件被误转义损坏 ✗
+#
+#      C# 项目在 Windows 上开发 → 源码用 CRLF ✓
+#      脚本类文件 → 用 LF ✓（兼容性更好）
+# ============================================================================
+
+# ---- 默认：自动识别文本，提交时统一成 LF ----
+* text=auto
+
+# ---- C# 源码：Windows 项目，用 CRLF ----
+*.cs       text eol=crlf
+*.csproj   text eol=crlf
+*.sln      text eol=crlf
+*.props    text eol=crlf
+*.targets  text eol=crlf
+*.manifest text eol=crlf
+
+# ---- PowerShell：CRLF（Windows 原生）----
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+
+# ---- 文档与配置：LF（跨平台友好）----
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.py   text eol=lf
+*.txt  text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.editorconfig   text eol=lf
+
+# ---- 二进制：不碰 ✗ ----
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.exe    binary
+*.dll    binary
+*.pdb    binary
+*.pfx    binary
+*.cer    binary
+*.snk    binary
+*.zip    binary
+*.7z     binary
+
+# ---- 让 GitHub 语言统计正确 ----
+*.cs     linguist-language=C#
+*.ps1    linguist-language=PowerShell
+*.py     linguist-language=Python
+
+# ---- 生成的文件不算进语言统计（避免刷榜）----
+bin/**          linguist-generated=true
+obj/**          linguist-generated=true
+**/*.Designer.cs linguist-generated=true
+**/*.g.cs        linguist-generated=true

@@ -1,0 +1,48 @@
+# ============================================================================
+#  WARDEN —— 代码风格统一
+# ============================================================================
+#  ★ 为什么需要这个：
+#      不同编辑器默认的缩进、换行、编码都不一样 ✗
+#      提交上来就会出现"满屏改动但只改了一个字符"的假 diff ✗
+#      这份文件让所有编辑器读到同一套规则 ✓
+# ============================================================================
+
+root = true
+
+# ---- 所有文件 ----
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ---- C# ----
+[*.cs]
+indent_size = 4
+# ★ 中文注释很常见，行宽放宽一点
+max_line_length = 120
+
+# ---- 工程文件 ----
+[*.{csproj,sln,props,targets}]
+indent_size = 2
+
+# ---- JSON / YAML ----
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# ---- Markdown ----
+[*.md]
+# ★ 中文文档里行尾两个空格是"硬换行"，不能删 ✗
+trim_trailing_whitespace = false
+indent_size = 2
+
+# ---- PowerShell ----
+[*.ps1]
+indent_size = 4
+
+# ---- Python（测试与工具脚本）----
+[*.py]
+indent_size = 4
+max_line_length = 110

@@ -1,0 +1,335 @@
+// ============================================================================
+//  数字签名验证 —— 用于"处置强度与可信度挂钩"
+// ============================================================================
+//  【为什么需要它】（用户定的规矩，2026-10-09）
+//
+//      规矩：有【合法数字签名】或【在白名单】的进程，
+//            不论它开了多少窗口，最多只允许隐藏窗口或发 WM_CLOSE，
+//            ★ 绝对不允许强杀。
+//
+//  【★ 但"有签名"也不能一概而论】（用户的第三条规矩）
+//      签名有效 ≠ 可信。很多流氓软件也买了代码签名证书。
+//      所以政策不是"有签名就不管"，而是：
+//
+//          无签名 + 不在白名单 → 可以升级到强杀
+//          有合法签名           → 只允许 L1/L2（隐藏 / WM_CLOSE）
+//          在白名单             → 只允许 L1/L2
+//
+//      也就是说：签名的作用是【降低处置强度】，不是【豁免处置】。
+//      弹窗照样要关掉，只是不用强制手段 ✓
+//
+//  【★ 实现方式的取舍】
+//      WinVerifyTrust 是纯 Win32 导出函数（不是 COM 对象），
+//      在 Native AOT 下可用 ✓
+//      —— 这一点很关键：实测过 FlaUI 那种走 COM 互操作的库在 AOT 下直接崩，
+//         但 WinVerifyTrust 只是普通 P/Invoke，没有这个问题。
+//
+//  【★ 失败时的默认方向】
+//      验签失败 / 出错 / 拿不到路径 → 一律按【已签名】处理 ✗✗
+//      即：宁可少用一次强杀，也不能因为验签出错而误杀一个正常程序。
+//      这条"保守失败"的方向，和整个安全设计是一致的 ✓
+// ============================================================================
+
+using System;
+using System.Runtime.InteropServices;
+
+namespace WARDEN
+{
+    /// <summary>签名验证结果。</summary>
+    internal enum SignatureState
+    {
+        /// <summary>验证通过，签名可信且文件未被篡改。</summary>
+        Valid = 0,
+        /// <summary>文件没有签名。</summary>
+        Unsigned = 1,
+        /// <summary>有签名但不信任（证书链问题、自签名等）。</summary>
+        Untrusted = 2,
+        /// <summary>签名存在但文件已被篡改。</summary>
+        Tampered = 3,
+        /// <summary>无法判断（路径拿不到、API 失败等）。★ 按 Valid 处理，保守。</summary>
+        Unknown = 4,
+    }
+
+    internal static class Signer
+    {
+        // ------------------------------------------------------------ 常量
+        private static readonly Guid WINTRUST_ACTION_GENERIC_VERIFY_V2 =
+            new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+        private const uint WTD_UI_NONE = 2;   // ★ 常量 WTD_UI_NONE
+        private const uint WTD_REVOKE_NONE = 0;   // ★ 常量 WTD_REVOKE_NONE
+        private const uint WTD_CHOICE_FILE = 1;   // ★ 常量 WTD_CHOICE_FILE
+        private const uint WTD_STATEACTION_VERIFY = 1;   // ★ 常量 WTD_STATEACTION_VERIFY
+        private const uint WTD_STATEACTION_CLOSE = 2;   // ★ 常量 WTD_STATEACTION_CLOSE
+        private const uint WTD_SAFER_FLAG = 0x00000100;   // ★ 常量 WTD_SAFER_FLAG
+
+        private const uint TRUST_E_NOSIGNATURE = 0x800B0100;   // ★ 常量 TRUST_E_NOSIGNATURE
+        private const uint TRUST_E_BAD_DIGEST = 0x80096010;   // ★ 常量 TRUST_E_BAD_DIGEST
+        private const uint TRUST_E_EXPLICIT_DISTRUST = 0x800B0111;   // ★ 常量 TRUST_E_EXPLICIT_DISTRUST
+        private const uint CERT_E_UNTRUSTEDROOT = 0x800B0109;   // ★ 常量 CERT_E_UNTRUSTEDROOT
+        private const uint CERT_E_EXPIRED = 0x800B0101;   // ★ 常量 CERT_E_EXPIRED
+        private const uint CERT_E_CHAINING = 0x800B010A;   // ★ 常量 CERT_E_CHAINING
+
+        // ------------------------------------------------------------ 结构体
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WINTRUST_FILE_INFO
+        {
+            public uint cbStruct;   // ★ 本结构体大小（必须正确填写，否则调用失败）
+            public IntPtr pcwszFilePath;   // 要验证的文件完整路径
+            public IntPtr hFile;   // 已打开的文件句柄（我们传 0 表示按路径验证）
+            public IntPtr pgKnownSubject;   // 已知主体 GUID（我们不用）
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WINTRUST_DATA
+        {
+            public uint cbStruct;   // ★ 本结构体大小（必须正确填写，否则调用直接失败）
+            public IntPtr pPolicyCallbackData;   // ★ 策略回调数据（我们不用）
+            public IntPtr pSIPClientData;   // ★ 主体接口包数据（我们不用）
+            public uint dwUIChoice;   // ★ 是否弹界面：WTD_UI_NONE 表示全程静默
+            public uint fdwRevocationChecks;   // ★ 是否检查吊销列表（我们设 WTD_REVOKE_NONE，避免联网卡住）
+            public uint dwUnionChoice;   // ★ 下面那个联合体里放的是什么类型（我们放文件）
+            public IntPtr pFile;   // ★ 指向 WINTRUST_FILE_INFO（要验证的文件）
+            public uint dwStateAction;   // ★ 对状态数据做什么（我们不管）
+            public IntPtr hWVTStateData;   // ★ 状态数据句柄（由系统填，我们不用）
+            public IntPtr pwszURLReference;   // ★ 相关 URL（我们不用）
+            public uint dwProvFlags;   // ★ 提供程序标志（比如禁用联网取证书链）
+            public uint dwUIContext;   // ★ 界面上下文（我们不用）
+            public IntPtr pSignatureSettings;   // ★ 签名设置（新版才有，我们留空）
+        }
+
+        [DllImport("wintrust.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern uint WinVerifyTrust(IntPtr hwnd, [In] Guid[] pgActionID,   // ★ 验证 Authenticode 数字签名（核心：判断进程是否被篡改）
+                                                  IntPtr pWVTData);
+
+        // ------------------------------------------------------------ 缓存
+        /// <summary>按进程名缓存结果 —— 同一个进程反复验签很浪费。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, SignatureState>
+            _cache = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 验证一个文件的数字签名状态。
+        /// ★ 任何异常都返回 Unknown（按已签名对待），绝不因为验签出错而放行强杀 ✗
+        /// </summary>
+        public static SignatureState Verify(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return SignatureState.Unknown;
+            }
+            if (_cache.TryGetValue(filePath, out var cached))
+            {
+                return cached;
+            }
+
+            SignatureState result;
+            IntPtr pathPtr = IntPtr.Zero;
+            IntPtr fileInfoPtr = IntPtr.Zero;
+            IntPtr trustDataPtr = IntPtr.Zero;
+
+            try
+            {
+                pathPtr = Marshal.StringToHGlobalUni(filePath);
+
+                var fileInfo = new WINTRUST_FILE_INFO
+                {
+                    cbStruct = (uint)Marshal.SizeOf<WINTRUST_FILE_INFO>(),
+                    pcwszFilePath = pathPtr,
+                    hFile = IntPtr.Zero,
+                    pgKnownSubject = IntPtr.Zero,
+                };
+                fileInfoPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WINTRUST_FILE_INFO>());
+                Marshal.StructureToPtr(fileInfo, fileInfoPtr, false);
+
+                var data = new WINTRUST_DATA
+                {
+                    cbStruct = (uint)Marshal.SizeOf<WINTRUST_DATA>(),
+                    dwUIChoice = WTD_UI_NONE,             // 不弹任何界面
+                    fdwRevocationChecks = WTD_REVOKE_NONE,
+                    dwUnionChoice = WTD_CHOICE_FILE,
+                    pFile = fileInfoPtr,
+                    dwStateAction = WTD_STATEACTION_VERIFY,
+                    dwProvFlags = WTD_SAFER_FLAG,
+                };
+                trustDataPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WINTRUST_DATA>());
+                Marshal.StructureToPtr(data, trustDataPtr, false);
+
+                uint hr = WinVerifyTrust(IntPtr.Zero,
+                                         new[] { WINTRUST_ACTION_GENERIC_VERIFY_V2 },
+                                         trustDataPtr);
+                result = MapResult(hr, filePath);
+
+                // ★ 必须再调一次 CLOSE，否则会泄漏状态数据
+                // ★★ 这里用泛型版 PtrToStructure<T>：非泛型版在 AOT 下
+                //    会产生 IL3050 警告（需要运行时代码生成），泛型版不需要 ✓
+                var closeData = Marshal.PtrToStructure<WINTRUST_DATA>(trustDataPtr);
+                closeData.dwStateAction = WTD_STATEACTION_CLOSE;
+                Marshal.StructureToPtr(closeData, trustDataPtr, false);
+                WinVerifyTrust(IntPtr.Zero,
+                               new[] { WINTRUST_ACTION_GENERIC_VERIFY_V2 },
+                               trustDataPtr);
+            }
+            catch
+            {
+                // ★ 出错就按"已签名"处理 —— 保守失败，绝不因此放行强杀
+                result = SignatureState.Unknown;
+            }
+            finally
+            {
+                if (trustDataPtr != IntPtr.Zero) Marshal.FreeHGlobal(trustDataPtr);
+                if (fileInfoPtr != IntPtr.Zero) Marshal.FreeHGlobal(fileInfoPtr);
+                if (pathPtr != IntPtr.Zero) Marshal.FreeHGlobal(pathPtr);
+            }
+
+            _cache[filePath] = result;
+            return result;
+        }
+
+        private static SignatureState MapResult(uint hr, string filePath)
+        {
+            if (hr == 0)
+            {
+                return SignatureState.Valid;
+            }
+            if (hr == TRUST_E_NOSIGNATURE)
+            {
+                // ★★★ 关键区分（2026-10-09 实测发现）：
+                //     WinVerifyTrust 返回"没有签名"有两种情况：
+                //       a) 文件【本来】就没签过名        → Unsigned ✓
+                //       b) 文件【有】签名数据，但被改坏了 → 也是 NOSIGNATURE ✗
+                //     第二种其实是"被篡改"，不该报成"没签名"✗
+                //     判据：看 PE 里有没有证书表（Security Directory）✓
+                if (HasEmbeddedSignature(filePath))
+                {
+                    return SignatureState.Tampered;
+                }
+                return SignatureState.Unsigned;
+            }
+            if (hr == TRUST_E_BAD_DIGEST)
+            {
+                return SignatureState.Tampered;
+            }
+            if (hr == TRUST_E_EXPLICIT_DISTRUST
+                || hr == CERT_E_UNTRUSTEDROOT
+                || hr == CERT_E_EXPIRED
+                || hr == CERT_E_CHAINING)
+            {
+                return SignatureState.Untrusted;
+            }
+            // 其它错误码（含文件不存在）→ 无法判断
+            return SignatureState.Unknown;
+        }
+
+        /// <summary>
+        /// ★★ 检查 PE 文件里是否【嵌入了签名数据】。
+        ///
+        /// 做法：读 PE 可选头的 DataDirectory[IMAGE_DIRECTORY_ENTRY_SECURITY]（索引 4）
+        ///       它的 VirtualAddress/Size 非 0 就说明有签名块 ✓
+        ///
+        /// 用途：区分"本来就没签名"和"签名被破坏了"✗
+        /// </summary>
+        public static bool HasEmbeddedSignature(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+                {
+                    return false;
+                }
+                using var fs = System.IO.File.OpenRead(filePath);
+                using var br = new System.IO.BinaryReader(fs);
+
+                // DOS 头：e_magic = 'MZ'，e_lfanew(0x3C) → PE 头偏移
+                if (fs.Length < 0x40 || br.ReadUInt16() != 0x5A4D)
+                {
+                    return false;
+                }
+                fs.Seek(0x3C, System.IO.SeekOrigin.Begin);
+                int peOff = br.ReadInt32();
+                if (peOff <= 0 || peOff + 24 > fs.Length)
+                {
+                    return false;
+                }
+                fs.Seek(peOff, System.IO.SeekOrigin.Begin);
+                if (br.ReadUInt32() != 0x00004550)   // 'PE\0\0'
+                {
+                    return false;
+                }
+                br.ReadUInt16();                     // Machine
+                int numSections = br.ReadUInt16();
+                br.ReadUInt32();                     // TimeDateStamp
+                br.ReadUInt32();                     // PointerToSymbolTable
+                br.ReadUInt32();                     // NumberOfSymbols
+                int optSize = br.ReadUInt16();
+                br.ReadUInt16();                     // Characteristics
+
+                long optOff = fs.Position;
+                ushort magic = br.ReadUInt16();
+                // PE32 → DataDirectory 在可选头偏移 0x60；PE32+ → 0x70
+                long ddOff = magic == 0x10B ? optOff + 0x60 : optOff + 0x70;
+
+                // 目录项 4 = IMAGE_DIRECTORY_ENTRY_SECURITY
+                long secOff = ddOff + 4 * 8;
+                if (secOff + 8 > fs.Length)
+                {
+                    return false;
+                }
+                fs.Seek(secOff, System.IO.SeekOrigin.Begin);
+                uint va = br.ReadUInt32();
+                uint sz = br.ReadUInt32();
+                return va != 0 && sz != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// ★★ 核心判定：这个进程是否【禁止强杀】。
+        ///
+        /// 返回 true 表示只能降级处置（隐藏 / WM_CLOSE），不能 TerminateProcess。
+        ///
+        /// 判断依据（任一成立即禁止）：
+        ///   ① 签名有效 / 不可判断（保守）
+        ///   ② 有签名但不信任 —— 也禁止：用户规矩说"有合法数字签名的"，
+        ///      而非法的更不该由我们动手，交给杀软
+        ///   ③ 在白名单 —— 由调用方另行判断
+        /// </summary>
+        public static bool IsProtectedFromKill(string imagePath, out string reason)
+        {
+            var st = Verify(imagePath);
+            switch (st)
+            {
+                case SignatureState.Valid:
+                    reason = "有合法数字签名 → 只允许隐藏或 WM_CLOSE";
+                    return true;
+                case SignatureState.Untrusted:
+                    reason = "有签名但不被信任 → 不自行强杀，交给安全软件";
+                    return true;
+                case SignatureState.Tampered:
+                    reason = "签名与文件不符 → 不自行强杀，交给安全软件";
+                    return true;
+                case SignatureState.Unknown:
+                    reason = "无法判断签名状态 → 保守处理，不强杀";
+                    return true;
+                case SignatureState.Unsigned:
+                    reason = string.Empty;
+                    return false;   // ★ 只有明确"无签名"才允许强杀
+                default:
+                    reason = "状态未知 → 保守处理";
+                    return true;
+            }
+        }
+
+        /// <summary>给日志用的人类可读描述。</summary>
+        public static string Describe(SignatureState st) => st switch
+        {
+            SignatureState.Valid => "签名有效",
+            SignatureState.Unsigned => "无签名",
+            SignatureState.Untrusted => "签名不受信任",
+            SignatureState.Tampered => "签名已失效(被篡改)",
+            _ => "签名状态未知",
+        };
+    }
+}

@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ========================================================================
+       WARDEN 设置工具 —— 独立窗口版
+
+       【为什么要单独一个工程】
+           用户反馈：原来的 PowerShell 版设置界面 ✗
+             关掉 PS 的控制台窗口 → 界面一起消失 ✗
+             因为 powershell.exe 就是界面的宿主 ✗
+           → 改成独立的 exe ✓ 双击就跑 ✓ 不依赖 PowerShell ✓
+
+       【为什么不跟 WARDEN 本体放一起】
+           WARDEN 本体是 Native AOT ✗
+           而 WinForms 在 AOT 下【不可用】✗✗✗
+           → 所以设置工具单独编译 ✓ 两者解耦 ✓
+           → WARDEN 本体保持 3.5MB 的小体积和 50ms 启动 ✓
+
+       【为什么不开 PublishAot】
+           开了就没法用 WinForms ✗
+           这个工具不需要 AOT：它只在用户点"设置"时才运行 ✓
+       ======================================================================== -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WARDEN-Settings</AssemblyName>
+    <RootNamespace>WardenSettings</RootNamespace>
+    <Version>0.1.0-beta.1</Version>
+    <Product>WARDEN 设置工具</Product>
+    <Authors>Firefly0619sec</Authors>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+
+    <!-- ★ 不做 AOT（AOT 下 WinForms 不可用） -->
+    <PublishAot>false</PublishAot>
+
+    <!-- 自包含发布：用户机器上不用另装 .NET 运行时 -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- 单文件：就是一个 exe，好分发 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- 裁剪掉没用的东西，压体积。
+         ★ 注意：WinForms 对裁剪比较敏感，所以用 partial 模式（保守） -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+</Project>

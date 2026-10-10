@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================================
+       WARDEN —— 窗口行为拦截工具
+       ============================================================
+       与 popup-closer（旧版，纯标题匹配）的区别：
+           · 事件驱动（SetWinEventHook）取代纯轮询
+           · 行为评分取代布尔匹配
+           · 三级处置阶梯：L1 礼貌关闭 → L2 劝退 → L3 强杀
+           · 强杀配四道安全闸（硬黑名单 + System32 + 白名单 + 前置条件）
+
+       ★ 输出 WinExe：不弹控制台窗口
+       ★ 原生 AOT + 不用 PublishSingleFile（实测单文件会让启动变慢 5 倍）
+       ★ JSON 走源生成器（AOT 下不能用反射式序列化）
+       ============================================================ -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+
+    <!-- ★★★ 必须加应用清单：
+         它声明依赖 comctl32 v6，而 TaskDialogIndirect 只在 v6 里存在 ✗
+         没有它，进程加载 v5 → 调用时抛 EntryPointNotFoundException ✗
+         （2026-10-09 实测踩到，是弹窗自检日志把它定位出来的）
+         顺带好处：控件外观现代化 + 高 DPI 感知 ✓ -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <DebugType>none</DebugType>
+
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+
+    <!-- 版本：测试阶段，按语义化版本 + Beta 标识 -->
+    <Version>0.1.0-beta.1</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0-beta.1</InformationalVersion>
+
+    <!-- ★ 许可：GPL-3.0-or-later（已与用户确认） -->
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <Authors>Firefly0619sec</Authors>
+    <Product>WARDEN</Product>
+    <Description>窗口行为拦截工具 —— 依据窗口行为特征识别并处置干扰性弹窗</Description>
+
+    <!-- ★★ 应用图标：任务栏、exe 文件属性、托盘都用它 -->
+    <ApplicationIcon>WARDEN.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- ============================================================
+       ★★★ 图标必须作为【内容文件】输出到 publish 目录
+
+       为什么不能只靠 ApplicationIcon：
+         ApplicationIcon 只是把图标【嵌进 exe 资源】✓
+         但托盘图标 Shell_NotifyIcon 需要从【文件路径】加载 ✗
+         （要从资源里加载得用 LoadIcon + 资源 ID，AOT 下更麻烦 ✗）
+
+       → 所以让 WARDEN.ico 跟着 exe 一起被复制出去 ✓
+         程序运行时用 Path.Combine(程序目录, "WARDEN.ico") 读它 ✓
+
+       ★ 踩过的坑：没加这一段的话，编译能过、程序能跑，
+         但托盘图标会【静默地用系统默认图标】✗
+         —— 看起来像"图标设计白做了"✗
+       ============================================================ -->
+  <ItemGroup>
+    <Content Include="WARDEN.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

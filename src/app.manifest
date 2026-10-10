@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="0.1.0.0" name="WARDEN.app" />
+
+  <!-- ========================================================================
+       ★★★ 必须声明 comctl32 v6 依赖 —— 这是 TaskDialogIndirect 的前提
+
+       为什么需要它：
+         TaskDialogIndirect 这个函数【只存在于 comctl32.dll 版本 6】✗
+         没有这份清单时，进程加载的是版本 5 ✗
+         → 调用时抛 EntryPointNotFoundException: TaskDialogIndirect, comctl32 ✗
+
+       （2026-10-09 实测：日志里明明白白写着这个异常，
+         正是靠弹窗自检日志才定位到的 —— 之前是静默失败，只能靠猜）
+
+       顺带的好处：
+         · 控件外观变成现代主题（按钮圆角、更清晰）✓
+         · 文件对话框等系统 UI 也一起现代化 ✓
+       ======================================================================== -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32"
+                        name="Microsoft.Windows.Common-Controls"
+                        version="6.0.0.0"
+                        processorArchitecture="*"
+                        publicKeyToken="6595b64144ccf1df"
+                        language="*" />
+    </dependentAssembly>
+  </dependency>
+
+  <!-- 兼容性声明：声明支持 Win10 / Win8.1 / Win8 / Win7 -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}" />
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}" />
+    </application>
+  </compatibility>
+
+  <!-- 不要提权：这个工具不需要管理员权限 -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- 高 DPI 感知：避免弹窗在高分屏上模糊 -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">permonitorv2,permonitor</dpiAwareness>
+    </windowsSettings>
+  </application>
+
+</assembly>
