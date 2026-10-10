@@ -61,7 +61,18 @@ Remove-Item (Join-Path $data 'WARDEN.lock') -Force -ErrorAction SilentlyContinue
 
 $results = @()
 Start-Process (Join-Path $inst 'WARDEN.exe') -WorkingDirectory $inst | Out-Null
-Start-Sleep -Seconds 5
+# ★ 采样修复：先确认它真的起来了 ✗ 否则样本全是 0（上次就踩了这个坑 ✓）
+$ready = $false
+for ($w = 0; $w -lt 20; $w++) {
+    Start-Sleep -Milliseconds 500
+    if (Get-Process WARDEN -ErrorAction SilentlyContinue) { $ready = $true; break }
+}
+if (-not $ready) {
+    Write-Host '  ★ WARDEN 没起来 → 检查自校验/锁文件（日志见 %LOCALAPPDATA%\WARDEN\WARDEN.log）' -ForegroundColor Red
+    exit 2
+}
+Write-Host '  · 等待 WARDEN 起来 ✓' -ForegroundColor DarkGray
+Start-Sleep -Seconds 3
 $results += Sample '空闲（无弹窗）' $Seconds
 
 # 弹窗轰炸
