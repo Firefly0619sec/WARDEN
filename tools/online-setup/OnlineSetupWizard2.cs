@@ -83,6 +83,11 @@ namespace WardenOnlineSetup
         [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr CreateFontW(
             int h, int w, int e, int o, int weight, uint i, uint u, uint s, uint cs, uint p, uint cl, uint q, uint pi, string face);
         [DllImport("gdi32.dll")] private static extern uint SetTextColor(IntPtr dc, uint c);
+        // ★ 画背景与蓝标题（上一版用 PatBlt 没画出来 ✗ 换 FillRect ✓）
+        [StructLayout(LayoutKind.Sequential)] private struct RECT { public int l, t, r, b; }
+        [DllImport("user32.dll")] private static extern int FillRect(IntPtr dc, ref RECT rr, IntPtr brush);
+        [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr h, out RECT rr);
+        [DllImport("user32.dll")] private static extern IntPtr GetSysColorBrush(int idx);
         [DllImport("gdi32.dll")] private static extern uint SetBkColor(IntPtr dc, uint c);
         [DllImport("gdi32.dll")] private static extern int SetBkMode(IntPtr dc, int m);
         [DllImport("gdi32.dll", CharSet = CharSet.Unicode, EntryPoint = "TextOutW")]
