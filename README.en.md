@@ -1,6 +1,11 @@
 # WARDEN — a popup and window behaviour blocker for Windows
 
 > 中文版：[README.md](README.md)　·　License: **AGPL-3.0-or-later**
+>
+> **Status: Beta 2 (0.1.0-beta.2)**
+> Downloads: <https://github.com/Firefly0619sec/WARDEN/releases>
+> Interface languages: **six** — Simplified Chinese, English (UK), English (US),
+> 繁體中文（中國臺灣 · 中國香港 · 中國澳門）
 
 WARDEN watches the windows that appear on your desktop and closes the ones that
 misbehave. It is **not** an ad-signature list and it does **not** rely on window
@@ -12,6 +17,88 @@ The result: annoying popups go away, and ordinary windows are left alone.
 
 ---
 
+## Why we build this
+
+### A scene that happens every day
+
+Someone who is not a computer person is in the middle of writing something.
+A box appears in the corner of the screen:
+
+> *Your computer has 27 security risks. Clean now.*
+
+They do not know whether it is real. They click **Clean now**, and end up with
+three browser extensions and a new browser they never asked for.
+
+**They are not stupid.** They are simply one person, up against hundreds of teams
+whose entire job is to work out how to make them click one more thing. That is
+not a fair fight, and it should not be their problem to win.
+
+### What we are trying to do
+
+**Give them a quiet desktop back.**
+
+Almost every trade-off in WARDEN comes back to that one sentence:
+
+| We choose | Rather than | Because |
+| --- | --- | --- |
+| Missing one popup | Killing one innocent window | If it breaks their software once, they will never trust it again |
+| Hide windows of signed programs | Force-kill everything | Signed software is usually legitimate; killing it can break their system |
+| Consent dialogs written in plain words | A wall of jargon | "This program's popup will not close. Force-kill it?" is answerable |
+| A red alert that lists the three things to do | A red alert that only shouts | A frightened person needs steps, not an alarm |
+| Logs in everyday language | English debug tags | So they can look and understand what happened |
+| Never going online, never asking for an account | Collecting "just a little" data | Nobody owes us their privacy in exchange for a free tool |
+
+### The intersection of technology and the humanities
+
+Steve Jobs described Apple as standing at the intersection of technology and the
+humanities. Our reading of that is simple: **the numbers are not the goal; the
+person is.**
+
+* An engine that closes a popup in 0.1 seconds is a failure if it leaves the user
+  wondering whether it will kill their own software.
+* A tool that blocks 100% of popups is also a failure if an older user cannot
+  understand a single line it shows them.
+
+So we keep reworking the things that never appear in a benchmark: replacing
+technical terms with plain language one at a time, growing the red alert from one
+button to five (where pressing one does something visible, immediately), and
+reading every line of the settings window out loud until it makes sense.
+
+## Supply chain and trust
+
+> This section answers one question: **why should I trust this installer?**
+
+Our rule is blunt: **anything you can verify yourself, you should not have to
+take on faith.**
+
+| Practice | What it lets you do |
+| --- | --- |
+| **Zero third-party dependencies** | Only the .NET runtime and Windows' own APIs — nothing of unknown provenance |
+| **Every commit GPG-signed** | Verify any change in the public history |
+| **The build script ships with the source** | Do not trust our binary? `git clone` and run `build.ps1` |
+| **`SHA256SUMS.txt` on the release page** | Compare after downloading; if it does not match, do not install |
+| **The online installer verifies before running** | A bad hash means it **refuses to run**; no checksum file, no automatic run either |
+| **The updater backs up before overwriting** | Roll back if something goes wrong — not "upgrade and hope" |
+| **Self-check on every start** | The program hashes itself; if it was swapped, it halts |
+| **Evidence stays on your machine** | It is written to a local log; whether it is ever sent is your decision |
+| **Works fully offline** | The main program never touches the network — fine on locked-down networks |
+
+We treat "**installed it and it will not start**" as a release blocker.
+For someone technical that is a nuisance; for everyone else it means "this
+software is broken". (A real example from our own log: the self-check used to
+decide "this looks like a fresh update" from file timestamps. That was too
+fragile — rewriting the settings file made it refuse to launch, three times in
+one day — so it now decides from the code signature instead. See
+[docs/工作日志-2026-10-10.md](docs/工作日志-2026-10-10.md).)
+
+### About code signing (current state)
+
+We have applied to the **SignPath Foundation** for free open-source code signing,
+and are waiting for review. Once approved, releases will carry a verifiable
+signature and SmartScreen will stop showing "Unknown publisher". Until then,
+please check the release against `SHA256SUMS.txt`. A PGP key is also available —
+see [docs/PGP公钥-在哪里与怎么用.md](docs/PGP公钥-在哪里与怎么用.md).
+
 ## Why it exists
 
 Most "popup blockers" are either
@@ -22,6 +109,23 @@ Most "popup blockers" are either
 Behaviour is much harder to fake without giving up the thing the popup exists
 for (stealing your attention), so WARDEN scores behaviour and only acts above a
 threshold you control.
+
+### What is in this version (Beta 2)
+
+| Capability | Notes |
+| --- | --- |
+| Behaviour-based blocking | No ad list, no title matching alone — it scores behaviour |
+| Six interface languages | Simplified Chinese, English (UK), English (US), and three Traditional Chinese variants |
+| First-run guide | One question: watch in drill mode first, or start blocking now |
+| Tray state icon | Original = guarding, amber = paused, red = emergency suppression |
+| Settings window | Seven tabs: Rules / Protection / Actions / Lists / Safety / Log / Language |
+| Rule import & export | JSON backup and sharing, with validation and a skipped-entry report |
+| Log viewer | Browse by category, export a Markdown report in one click |
+| Evidence reporting | One-click masked report; usernames/e-mails/phone numbers are redacted; nothing is uploaded unless you choose a transport |
+| Command line | `warden-cli`: status / tail / stop / rules / report |
+| Online installer | ~5 MB, fetches the latest release and verifies SHA256 before running |
+| Portable mode | Drop `WARDEN.portable` next to the exe; all data stays in that folder |
+| Crash collection | Writes a local `CRASH-<time>.log`; nothing is sent anywhere |
 
 ## How it behaves
 
@@ -59,9 +163,9 @@ threshold you control.
    rights needed**.
 3. That is all. No account, no registration, no runtime to install first.
 
-Verify the download against the SHA256 published with the release, and check the
-digital signature (once code signing is in place) before running anything you got
-from a third party.
+Verify the download against the SHA256 published with the release before running
+anything you got from a third party. Code signing (SignPath Foundation) is
+under review; until it lands, the checksum is the verification path.
 
 ## First run
 
