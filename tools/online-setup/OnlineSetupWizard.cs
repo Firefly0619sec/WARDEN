@@ -1,24 +1,28 @@
 // ============================================================================
-//  WARDEN 在线安装器 —— 图形界面版（2026-10-11）
+//  WARDEN 在线安装器 —— 向导式窗口（2026-10-11 第二版）
 // ============================================================================
-//  【为什么从控制台改成窗口】
-//    之前是黑底白字控制台 ✗ 还问 "Continue? (Y/n)" ✗
-//    而我们 README 写的是"把安静的桌面还给他"✗ 给普通用户黑窗口就是打自己脸 ✓
+//  【用户的两点要求（都照做了 ✓）】
+//    ① 界面参考【离线安装包】（WARDEN-Setup）：蓝色标题栏 + 向导感 ✓
+//    ② 体积一定要下来 ✓
 //
-//  【为什么不用 WinForms】自包含约 47 MB ✗ 与离线包一样大，"在线"就没意义 ✓
-//    → 原生 AOT + 纯 Win32（系统自带的 STATIC / PROGRESS / BUTTON 控件 ✓）
-//      体积约 2~4 MB ✓ 观感就是标准 Windows 窗口 ✓
+//  【怎么把体积压下来】
+//    · 不用 HttpClient ✗ → 改用系统自带的 curl.exe（Win10 1803+ / Win11 都有 ✓）
+//        HttpClient 会拖进 Sockets / TLS / 代理一整条链 ✗ 约 2 MB ✓
+//        curl.exe 是系统的 ✗ 我们只是调它 ✓ 自己做进度（轮询临时文件大小 ✓）
+//    · InvariantGlobalization=true → 不再打包 ICU ✓（又省约 1 MB ✓
+//        而且少一份 Unicode 许可声明 ✓）
+//    · 只保留必需：user32 / gdi32 / comctl32 / shell32 / kernel32 + 单个 SHA256 ✓
+//    → 目标 1.5~2.5 MB（原 5.5 MB ✓）
 //
-//  【流程】查版本 → 显示 → 下载（进度条动 ✓）→ 校验 SHA256 → 通过后可点安装 ✓
-//  【★ 安全】校验不过 → 明确拒绝运行 ✗ 文件留着让你自己看 ✓ 不静默降级 ✓
-//  【参数】--check / --proxy <url> / --version / --help（控制台输出 ✓ 给脚本用 ✓）
+//  【界面（照离线安装包的观感）】
+//    蓝色标题区：WARDEN 在线安装 + 一行说明（白字 ✓）
+//    白色正文区：当前状态大字 + 进度条 + 两行提示
+//    底部按钮：手动下载 / 取消 / 开始安装（校验通过前灰着 ✗）
 // ============================================================================
 
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -35,13 +39,14 @@ namespace WardenOnlineSetup
         private static readonly string ApiLatest = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
         private static readonly string ApiList = $"https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static readonly string Releases = $"https://github.com/{Owner}/{Repo}/releases";
+        private const string UA = "WARDEN-Online-Setup/" + Version;
 
         private static bool _en;
-        private static string T(string zh, string eng) => _en ? eng : zh;
+        private static string T(string zh, string en) => _en ? en : zh;
 
         private static volatile int _percent;
         private static volatile string _status = "", _version = "", _err = "", _proxy = "", _file = "";
-        private static volatile int _phase;          // 0 查询 2 下载/校验 3 就绪 9 失败
+        private static volatile int _phase;          // 0 查询 2 下载 3 就绪 9 失败
         private static volatile bool _cancel;
 
         // ------------------------------------------------------------ Win32
@@ -63,6 +68,10 @@ namespace WardenOnlineSetup
         [DllImport("user32.dll")] private static extern bool EnableWindow(IntPtr h, bool e);
         [DllImport("user32.dll")] private static extern int GetSystemMetrics(int i);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int MessageBoxW(IntPtr h, string t, string c, uint type);
+        [DllImport("user32.dll")] private static extern int SetTextColor(IntPtr dc, int color);
+        [DllImport("user32.dll")] private static extern uint SetBkColor(IntPtr dc, uint color);
+        [DllImport("user32.dll")] private static extern int SetBkMode(IntPtr dc, int mode);
+        [DllImport("gdi32.dll")] private static extern IntPtr CreateSolidBrush(uint color);
         [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr CreateFontW(
             int h, int w, int e, int o, int weight, uint i, uint u, uint s, uint cs, uint p, uint cl, uint q, uint pi, string face);
         [DllImport("comctl32.dll")] private static extern bool InitCommonControlsEx(ref ICC icc);
@@ -76,15 +85,19 @@ namespace WardenOnlineSetup
         [StructLayout(LayoutKind.Sequential)] private struct ICC { public uint size, icc; }
 
         private const uint WS_CHILD = 0x40000000, WS_VISIBLE = 0x10000000, WS_TABSTOP = 0x00010000;
-        private const uint WS_OVERLAPPED = 0, WS_CAPTION = 0x00C00000, WS_SYSMENU = 0x00080000;
-        private const uint WM_COMMAND = 0x0111, WM_CLOSE = 0x0010, WM_DESTROY = 0x0002, WM_SETFONT = 0x0030, WM_SETTEXT = 0x000C;
+        private const uint WS_CAPTION = 0x00C00000, WS_SYSMENU = 0x00080000, WS_OVERLAPPED = 0;
+        private const uint WM_COMMAND = 0x0111, WM_CLOSE = 0x0010, WM_DESTROY = 0x0002;
+        private const uint WM_SETFONT = 0x0030, WM_SETTEXT = 0x000C, WM_CTLCOLORSTATIC = 0x0138;
         private const uint PBM_SETRANGE = 0x0401, PBM_SETPOS = 0x0402;
         private const uint WM_UPDATE = 0x8001, WM_DONE = 0x8002;
         private const uint ICC_PROGRESS = 0x20, ICC_STD = 0x4000;
         private const int SW_SHOW = 5;
         private const int IDOK = 1000, IDCANCELB = 1001, IDMANUAL = 1002;
+        private const uint BLUE = 0x00D27800;   // BGR：和离线安装包的标题蓝一致 ✓
+        private const int WHITE = 0x00FFFFFF;
 
-        private static IntPtr _w, _hVer, _hStatus, _hNote, _hBar, _hOk, _hCancel, _hManual;
+        private static IntPtr _w, _hTitle, _hSub, _hVer, _hStatus, _hBar, _hNote, _hOk, _hCancel, _hManual;
+        private static IntPtr _blueBrush;
         private delegate IntPtr Proc(IntPtr h, uint m, IntPtr w, IntPtr l);
         private static readonly Proc _cb = OnMsg;
 
@@ -104,32 +117,21 @@ namespace WardenOnlineSetup
                     case "-h":
                     case "--help":
                         Console.WriteLine("WARDEN " + T("在线安装器", "online installer") + " " + Version);
-                        Console.WriteLine(T("  不带参数双击 = 窗口界面 ✓", "  No arguments = GUI"));
+                        Console.WriteLine(T("  不带参数双击 = 向导窗口 ✓", "  No arguments = wizard window"));
                         Console.WriteLine("  --check        " + T("只检查新版本", "check only"));
                         Console.WriteLine("  --proxy <url>  " + T("走代理", "use a proxy"));
                         Console.WriteLine("  " + T("离线安装包：", "Offline installer: ") + Releases);
                         return 0;
                 }
             }
-            return check ? RunConsole() : RunGui();
-        }
-
-        // ------------------------------------------------------------ 控制台（--check ✓）
-        private static int RunConsole()
-        {
-            using var http = MakeHttp();
-            try
+            if (check)
             {
-                Console.WriteLine((M(http.GetStringAsync(ApiList).GetAwaiter().GetResult(),
-                                     "\"tag_name\"\\s*:\\s*\"([^\"]+)\"") ?? "?") + T("   ← 最新版本", "  <- latest"));
-                Console.WriteLine(T("✓ 只检查 → 不下载", "✓ check only -> nothing downloaded"));
-                return 0;
+                string j = Curl(ApiList);
+                var m0 = Regex.Match(j, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
+                Console.WriteLine((m0.Success ? m0.Groups[1].Value : "?") + T("   ← 最新版本", "  <- latest"));
+                return m0.Success ? 0 : 2;
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(T("★ 查不到：", "★ Failed: ") + e.Message + "\n" + Releases);
-                return 2;
-            }
+            return RunGui();
         }
 
         // ------------------------------------------------------------ 窗口
@@ -145,8 +147,9 @@ namespace WardenOnlineSetup
                 hbrBackground = (IntPtr)16,
             };
             RegisterClassW(ref wc);
+            _blueBrush = CreateSolidBrush(BLUE);
 
-            int w = 720, h = 300;
+            int w = 720, h = 400;
             _w = CreateWindowExW(0, "WARDENOnlineSetup", T("WARDEN 在线安装", "WARDEN online setup"),
                  WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
                  (GetSystemMetrics(0) - w) / 2, (GetSystemMetrics(1) - h) / 2, w, h,
@@ -156,28 +159,34 @@ namespace WardenOnlineSetup
                 MessageBoxW(IntPtr.Zero, T("窗口创建失败 ✗", "Window creation failed"), "WARDEN", 0x10);
                 return 3;
             }
-            var big = CreateFontW(-22, 0, 0, 0, 700, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
-            var norm = CreateFontW(-15, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
+            var big = CreateFontW(-24, 0, 0, 0, 700, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
+            var mid = CreateFontW(-15, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
+            var sml = CreateFontW(-14, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
 
-            _hVer = Mk("STATIC", T("正在查询最新版本…", "Checking the latest release…"), 24, 18, 660, 36, big);
-            _hStatus = Mk("STATIC", T("请稍候 ✓", "Please wait"), 24, 62, 660, 50, norm);
-            _hBar = Mk("msctls_progress32", "", 24, 120, 660, 24, IntPtr.Zero);
+            // ★ 蓝色标题区（照离线安装包 ✓）
+            _hTitle = Mk("STATIC", "WARDEN " + T("在线安装", "online setup"), 0, 0, w, 46, big);
+            _hSub = Mk("STATIC", T("自动获取最新版，下载后先校验 SHA256 再交给安装向导 ✓",
+                                   "Fetches the latest release, verifies SHA256, then hands off to the installer"),
+                       0, 46, w, 30, mid);
+
+            _hVer = Mk("STATIC", T("正在查询最新版本…", "Checking the latest release…"), 24, 96, w - 48, 34, big);
+            _hStatus = Mk("STATIC", T("请稍候 ✓", "Please wait"), 24, 138, w - 48, 26, mid);
+            _hBar = Mk("msctls_progress32", "", 24, 172, w - 48, 22, IntPtr.Zero);
             SendMessageW(_hBar, PBM_SETRANGE, IntPtr.Zero, (IntPtr)((100 << 16) | 0));
             _hNote = Mk("STATIC", T("★ 主程序不联网 —— 只有这个窗口会访问 GitHub 一次 ✓\n"
-                                  + "★ 下载完会先校验 SHA256，对不上就拒绝安装 ✗",
+                                  + "★ 校验不通过就【拒绝安装】，不会静默降级 ✗",
                                   "★ The app itself is offline; only this window contacts GitHub.\n"
-                                  + "★ The download is verified against SHA256 before it runs."),
-                        24, 152, 660, 44, norm);
-            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 24, 208, 130, 34, norm);
-            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 424, 208, 110, 34, norm);
-            _hOk = Mk("BUTTON", T("开始安装", "Install now"), 544, 208, 140, 40, norm);
+                                  + "★ If the hash does not match, it refuses to install."),
+                        24, 206, w - 48, 50, sml);
+            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 24, 300, 130, 34, mid);
+            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 424, 300, 110, 34, mid);
+            _hOk = Mk("BUTTON", T("开始安装", "Install now"), 544, 300, 140, 38, mid);
             EnableWindow(_hOk, false);
 
             ShowWindow(_w, SW_SHOW);
             UpdateWindow(_w);
             SetForegroundWindow(_w);
             new Thread(Work) { IsBackground = true }.Start();
-
             while (GetMessageW(out MSG m, IntPtr.Zero, 0, 0) > 0)
             {
                 TranslateMessage(ref m);
@@ -197,16 +206,23 @@ namespace WardenOnlineSetup
 
         private static void SetText(IntPtr h, string s)
         {
-            if (h != IntPtr.Zero)
-            {
-                SendMessageW(h, WM_SETTEXT, IntPtr.Zero, Marshal.StringToHGlobalUni(s));
-            }
+            if (h != IntPtr.Zero) { SendMessageW(h, WM_SETTEXT, IntPtr.Zero, Marshal.StringToHGlobalUni(s)); }
         }
 
         private static IntPtr OnMsg(IntPtr h, uint m, IntPtr wp, IntPtr lp)
         {
             switch (m)
             {
+                case WM_CTLCOLORSTATIC:
+                    // ★ 标题区两行：白字 + 蓝底（其余行保持默认 ✓）
+                    if (lp == _hTitle || lp == _hSub)
+                    {
+                        SetTextColor(wp, WHITE);
+                        SetBkColor(wp, BLUE);
+                        SetBkMode(wp, 1);   // TRANSPARENT
+                        return _blueBrush;
+                    }
+                    break;
                 case WM_UPDATE:
                     SendMessageW(_hBar, PBM_SETPOS, (IntPtr)_percent, IntPtr.Zero);
                     SetText(_hStatus, _status);
@@ -231,25 +247,19 @@ namespace WardenOnlineSetup
                     return IntPtr.Zero;
                 case WM_COMMAND:
                     int id = (int)(wp.ToInt64() & 0xFFFF);
-                    if (id == IDOK)
+                    if (id == IDOK && _file.Length > 0 && File.Exists(_file))
                     {
-                        if (_file.Length > 0 && File.Exists(_file))
-                        {
-                            ShellExecuteW(IntPtr.Zero, "open", _file, "", null, 1);
-                        }
-                        return IntPtr.Zero;
+                        ShellExecuteW(IntPtr.Zero, "open", _file, "", null, 1);
                     }
-                    if (id == IDMANUAL)
+                    else if (id == IDMANUAL)
                     {
                         ShellExecuteW(IntPtr.Zero, "open", Releases, "", null, 1);
-                        return IntPtr.Zero;
                     }
-                    if (id == IDCANCELB)
+                    else if (id == IDCANCELB)
                     {
                         _cancel = true;
                         if (_phase == 3 || _phase == 9) { DestroyWindow(h); }
                         else { SetText(_hStatus, T("正在取消…", "Cancelling…")); }
-                        return IntPtr.Zero;
                     }
                     return IntPtr.Zero;
                 case WM_CLOSE:
@@ -263,87 +273,135 @@ namespace WardenOnlineSetup
             return DefWindowProcW(h, m, wp, lp);
         }
 
-        // ------------------------------------------------------------ 干活线程
+        // ------------------------------------------------------------ curl 调用
+        private static string Curl(string url)
+        {
+            var psi = new ProcessStartInfo("curl.exe")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+            };
+            psi.ArgumentList.Add("-sSL");
+            psi.ArgumentList.Add("--max-time");
+            psi.ArgumentList.Add("60");
+            psi.ArgumentList.Add("-H");
+            psi.ArgumentList.Add("User-Agent: " + UA);
+            psi.ArgumentList.Add("-H");
+            psi.ArgumentList.Add("Accept: application/vnd.github+json");
+            AddProxy(psi);
+            psi.ArgumentList.Add(url);
+            using var p = Process.Start(psi)!;
+            string outp = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(70000);
+            return outp;
+        }
+
+        private static void AddProxy(ProcessStartInfo psi)
+        {
+            if (!string.IsNullOrEmpty(_proxy))
+            {
+                psi.ArgumentList.Add("--proxy");
+                psi.ArgumentList.Add(_proxy);
+            }
+        }
+
+        // ------------------------------------------------------------ 干活
         private static void Work()
         {
             try
             {
-                using var http = MakeHttp();
                 _version = T("正在查询最新版本…", "Checking the latest release…");
                 Post(WM_UPDATE);
-                string json;
-                try { json = http.GetStringAsync(ApiLatest).GetAwaiter().GetResult(); }
-                catch
+
+                string json = Curl(ApiLatest);
+                if (!json.Contains("tag_name"))
                 {
-                    json = http.GetStringAsync(ApiList).GetAwaiter().GetResult();
-                    int cut = json.IndexOf("\"assets\"");
-                    if (cut > 0) { json = json.Substring(0, cut + 4000); }
-                    if (!json.Contains("tag_name")) { throw new HttpRequestException("no release"); }
+                    string list = Curl(ApiList);
+                    int first = list.IndexOf("\"tag_name\"");
+                    int second = first >= 0 ? list.IndexOf("\"tag_name\"", first + 10) : -1;
+                    if (first < 0) { throw new Exception(T("查不到发布信息（没联网 / 需要代理 / 还没发布过版本）",
+                                                          "Could not read release info (offline / proxy needed / nothing released)")); }
+                    json = second > first ? list.Substring(first - 20, second - first + 20) : list.Substring(first - 20);
                 }
                 if (_cancel) { return; }
-                string tag = M(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"") ?? "?";
-                string name = M(json, "\"name\"\\s*:\\s*\"([^\"]+)\"") ?? tag;
+                var mt = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
+                var mn = Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
+                string tag = mt.Success ? mt.Groups[1].Value : "?";
+                string name = mn.Success ? mn.Groups[1].Value : tag;
                 _version = name + "   (" + tag + ")";
                 _status = T("正在挑选下载文件…", "Choosing the download…");
                 Post(WM_UPDATE);
 
-                var list = new System.Collections.Generic.List<(string n, string u)>();
+                var list2 = new System.Collections.Generic.List<(string n, string u, long sz)>();
                 foreach (Match mm in Regex.Matches(json,
-                         "\"name\"\\s*:\\s*\"([^\"]+)\"[^}]*?\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
+                         "\"name\"\\s*:\\s*\"([^\"]+)\"[^}]*?\"size\"\\s*:\\s*(\\d+)[^}]*?\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
                 {
-                    list.Add((mm.Groups[1].Value, mm.Groups[2].Value));
+                    list2.Add((mm.Groups[1].Value, mm.Groups[3].Value, long.Parse(mm.Groups[2].Value)));
                 }
-                if (list.Count == 0) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
-                var pick = list.Find(a => a.n.Equals("WARDEN-Setup.exe", StringComparison.OrdinalIgnoreCase));
-                if (pick.n == null) { pick = list.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)); }
-                if (pick.n == null) { pick = list[0]; }
+                if (list2.Count == 0) { throw new Exception(T("这个版本没有可下载的文件 ✗", "This release has no assets")); }
+                var pick = list2.Find(a => a.n.Equals("WARDEN-Setup.exe", StringComparison.OrdinalIgnoreCase));
+                if (pick.n == null) { pick = list2.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)); }
+                if (pick.n == null) { pick = list2[0]; }
 
                 string tmp = Path.Combine(Path.GetTempPath(), "WARDEN-" + tag.Replace('/', '_') + "-" + pick.n);
+                if (File.Exists(tmp)) { try { File.Delete(tmp); } catch { } }
                 _status = T("正在下载…", "Downloading…");
                 Post(WM_UPDATE);
-                using (var resp = http.GetAsync(pick.u, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+
+                // ★ 用 curl 下载 ✓ 自己轮询文件大小做进度（不再依赖 HttpClient ✓）
+                var cp = new ProcessStartInfo("curl.exe")
                 {
-                    resp.EnsureSuccessStatusCode();
-                    long total = resp.Content.Headers.ContentLength ?? 0;
-                    using var src = resp.Content.ReadAsStream();
-                    using var dst = File.Create(tmp);
-                    var buf = new byte[65536];
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                cp.ArgumentList.Add("-L");
+                cp.ArgumentList.Add("--fail");
+                cp.ArgumentList.Add("--silent");
+                cp.ArgumentList.Add("--show-error");
+                cp.ArgumentList.Add("-A");
+                cp.ArgumentList.Add(UA);
+                AddProxy(cp);
+                cp.ArgumentList.Add("-o");
+                cp.ArgumentList.Add(tmp);
+                cp.ArgumentList.Add(pick.u);
+                using var proc = Process.Start(cp)!;
+                while (!proc.HasExited)
+                {
+                    if (_cancel) { try { proc.Kill(); } catch { } return; }
                     long got = 0;
-                    int n;
-                    while ((n = src.Read(buf, 0, buf.Length)) > 0)
-                    {
-                        if (_cancel) { return; }
-                        dst.Write(buf, 0, n);
-                        got += n;
-                        _percent = total > 0 ? (int)(got * 100 / total) : 0;
-                        _status = T("正在下载… ", "Downloading… ") + _percent + "%   ("
-                                  + (got / 1048576.0).ToString("0.0") + " / "
-                                  + (total / 1048576.0).ToString("0.0") + " MB)";
-                        Post(WM_UPDATE);
-                    }
+                    try { got = new FileInfo(tmp).Length; } catch { }
+                    _percent = pick.sz > 0 ? (int)Math.Min(100, got * 100 / pick.sz) : 0;
+                    _status = T("正在下载… ", "Downloading… ") + _percent + "%   ("
+                              + (got / 1048576.0).ToString("0.0") + " / "
+                              + (pick.sz / 1048576.0).ToString("0.0") + " MB)";
+                    Post(WM_UPDATE);
+                    Thread.Sleep(300);
                 }
+                if (proc.ExitCode != 0) { throw new Exception(T("下载失败（curl 退出码 ", "Download failed (curl exit ") + proc.ExitCode + ")"); }
+
                 _file = tmp;
                 _percent = 100;
                 _status = T("正在校验 SHA256…", "Verifying SHA256…");
                 Post(WM_UPDATE);
 
-                var sums = list.Find(a => a.n.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
+                var sums = list2.Find(a => a.n.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
                 if (sums.u == null)
                 {
-                    _err = T("★ 这个版本没有 SHA256SUMS.txt → 为安全起见不自动运行 ✗\n文件留着：", 
+                    _err = T("★ 这个版本没有 SHA256SUMS.txt → 为安全起见不自动运行 ✗\n文件留着：",
                              "★ No SHA256SUMS.txt -> not running it automatically. File kept at: ") + tmp;
-                    _phase = 9;
-                    Post(WM_DONE);
-                    return;
+                    _phase = 9; Post(WM_DONE); return;
                 }
-                string st = http.GetStringAsync(sums.u).GetAwaiter().GetResult();
+                string st = Curl(sums.u);
                 string want = "";
                 foreach (string line in st.Split('\n'))
                 {
                     if (line.Trim().EndsWith(pick.n, StringComparison.OrdinalIgnoreCase))
                     {
-                        want = line.Trim().Split(' ')[0].ToLowerInvariant();
-                        break;
+                        want = line.Trim().Split(' ')[0].ToLowerInvariant(); break;
                     }
                 }
                 using var sha = SHA256.Create();
@@ -352,12 +410,9 @@ namespace WardenOnlineSetup
                 if (want.Length == 0 || want != got2)
                 {
                     _err = T("★★ 校验不通过 → 【拒绝运行】✗ 文件可能被篡改\n期望 ", "★★ Verification failed -> refusing to run\nExpected ")
-                           + want.Substring(0, Math.Min(16, want.Length)) + "…   "
-                           + T("实际 ", "actual ") + got2.Substring(0, 16) + "…\n"
-                           + T("文件留着：", "File kept at: ") + tmp;
-                    _phase = 9;
-                    Post(WM_DONE);
-                    return;
+                           + want.Substring(0, Math.Min(16, want.Length)) + "…   " + T("实际 ", "actual ")
+                           + got2.Substring(0, 16) + "…\n" + T("文件留着：", "File kept at: ") + tmp;
+                    _phase = 9; Post(WM_DONE); return;
                 }
                 _phase = 3;
                 _status = T("✓ 校验通过", "✓ Verified");
@@ -366,29 +421,12 @@ namespace WardenOnlineSetup
             catch (Exception e)
             {
                 _phase = 9;
-                _err = T("★ 出错：", "★ Error: ") + e.Message + "\n\n"
-                     + T("可能原因：没联网 / 需要代理 / 还没发布过版本 ✓\n手动下载：",
-                         "Possible causes: offline / proxy needed / nothing released yet.\nDownload: ") + Releases;
+                _err = T("★ 出错：", "★ Error: ") + e.Message + "\n"
+                     + T("手动下载：", "Download manually: ") + Releases;
                 Post(WM_DONE);
             }
         }
 
         private static void Post(uint m) => PostMessageW(_w, m, IntPtr.Zero, IntPtr.Zero);
-
-        private static HttpClient MakeHttp()
-        {
-            var h = new HttpClientHandler();
-            if (!string.IsNullOrEmpty(_proxy)) { h.Proxy = new WebProxy(_proxy); h.UseProxy = true; }
-            var http = new HttpClient(h) { Timeout = TimeSpan.FromMinutes(15) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("WARDEN-Online-Setup/" + Version);
-            http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
-            return http;
-        }
-
-        private static string? M(string t, string p)
-        {
-            var m = Regex.Match(t, p);
-            return m.Success ? m.Groups[1].Value : null;
-        }
     }
 }
