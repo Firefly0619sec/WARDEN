@@ -17,7 +17,7 @@
     <AssemblyTitle>WARDEN 红队自测工具</AssemblyTitle>
     <Product>WARDEN</Product>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
   </PropertyGroup>

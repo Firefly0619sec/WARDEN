@@ -85,7 +85,23 @@ namespace WardenOnlineSetup
         [DllImport("gdi32.dll")] private static extern uint SetTextColor(IntPtr dc, uint c);
         [DllImport("gdi32.dll")] private static extern uint SetBkColor(IntPtr dc, uint c);
         [DllImport("gdi32.dll")] private static extern int SetBkMode(IntPtr dc, int m);
-        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] private static extern bool TextOutW(IntPtr dc, int x, int y, string s, int n);
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode, EntryPoint = "TextOutW")]
+        private static extern bool TextOutWRaw(IntPtr dc, int x, int y, string s, int n);
+
+        /// <summary>★ 只在这里写一次：长度永远取真实长度 ✓
+        ///   （之前每个调用点手写 30/60/90… 超过真实长度 ✗
+        ///     TextOutW 会读到字符串末尾之外 → 画出乱字与重叠 ✓ 已修 ✓）</summary>
+        private static bool TextOutW(IntPtr dc, int x, int y, string s)
+        {
+            if (string.IsNullOrEmpty(s)) { return false; }
+            return TextOutWRaw(dc, x, y, s, s.Length);
+        }
+
+        /// <summary>★ 兼容旧的 5 参数写法：传进来的长度【一律忽略】✗ 用真实长度 ✓
+        ///   （那些调用点原来手写 30/60/90… 比字符串还长 ✗
+        ///     TextOutW 会越读 → 画出乱字 ✓ 这一层彻底堵住 ✓）</summary>
+        private static bool TextOutW(IntPtr dc, int x, int y, string s, int n)
+            => TextOutWRaw(dc, x, y, s, string.IsNullOrEmpty(s) ? 0 : s.Length);
         [DllImport("comctl32.dll")] private static extern bool InitCommonControlsEx(ref ICC icc);
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr ShellExecuteW(
             IntPtr h, string op, string file, string param, string dir, int show);

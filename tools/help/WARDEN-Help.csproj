@@ -24,7 +24,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>WARDEN-Help</AssemblyName>
     <RootNamespace>WardenHelp</RootNamespace>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <Product>WARDEN 帮助中心</Product>
     <Authors>Firefly0619sec</Authors>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
