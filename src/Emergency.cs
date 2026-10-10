@@ -807,7 +807,7 @@ namespace WARDEN
                      + "  [" + kind + "] " + text;
                 string dir = Path.GetDirectoryName(_evidencePath) ?? ".";
                 Directory.CreateDirectory(dir);
-                File.AppendAllText(_evidencePath, line + Environment.NewLine, Encoding.UTF8);
+                File.AppendAllText(_evidencePath, line + Environment.NewLine, new UTF8Encoding(false));   // ★ 无 BOM：用户要求日志干净 ✓
             }
             catch
             {

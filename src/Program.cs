@@ -365,6 +365,34 @@ namespace WARDEN
         }
 
         // ------------------------------------------------------------ 日志
+        // ★★★ A52A：主循环看门狗（事故后重新装回）
+        //   【为什么必须有】卡住时必须留下证据 ✗
+        //   "守护进程静默地死掉"是最坏的失败方式
+        private static long _stageTick = Environment.TickCount64;
+        private static string _stageTag = "启动";
+
+        private static void Stage(string tag)
+        {
+            _stageTag = tag;
+            System.Threading.Interlocked.Exchange(ref _stageTick, Environment.TickCount64);
+        }
+
+        private static void WatchdogThread()
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(1000);
+                long last = System.Threading.Interlocked.Read(ref _stageTick);
+                long age = Environment.TickCount64 - last;
+                if (age > 5000)
+                {
+                    Log("[看门狗] ★ 主扫描已 " + (age / 1000) + " 秒没有进展"
+                        + "（停在：" + _stageTag + "）—— 疑似被某个调用卡住 ✗");
+                    System.Threading.Interlocked.Exchange(ref _stageTick, Environment.TickCount64);
+                }
+            }
+        }
+
         private static void Log(string msg)
         {
             lock (_logLock)
@@ -478,13 +506,35 @@ namespace WARDEN
                 {
                     return false;
                 }
-                IntPtr h = Native.OpenProcess(Native.PROCESS_QUERY_LIMITED_INFORMATION,
-                                              false, (uint)oldPid);
-                if (h == IntPtr.Zero)
+                // ★★★ 不能只看"PID 还活着"✗
+                //   实测踩到过：上一次被强行杀掉，锁文件留在那里，
+                //   PID 后来被系统复用给了别的进程 →
+                //   WARDEN 以为"已经在运行"，于是【静默退出】✗✗
+                //   （现象：双击没反应、连日志都不写）
+                //   → 必须核对：那个 PID 到底是不是 WARDEN.exe ✓
+                bool isWarden = false;
+                try
                 {
+                    using var op = System.Diagnostics.Process.GetProcessById(oldPid);
+                    string name = op.ProcessName;
+                    isWarden = name.Equals("WARDEN", StringComparison.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    isWarden = false;   // 进程不存在 / 拿不到 → 当成过期锁 ✓
+                }
+
+                if (!isWarden)
+                {
+                    // ★ 过期锁：回收它，正常启动 ✓（并且留一条日志，便于排查）
+                    try
+                    {
+                        File.Delete(LockPath);
+                        Log("[锁] 发现过期锁（pid=" + oldPid + " 不是 WARDEN）→ 已回收，正常启动 ✓");
+                    }
+                    catch { }
                     return false;
                 }
-                Native.CloseHandle(h);
                 return true;
             }
             catch
@@ -880,6 +930,19 @@ namespace WARDEN
                     Log("★ 加入红队规则失败（不影响守护）：" + rEx.Message);
                 }
 
+                // ★★★ A46 应急压制：接线（事故后补回）
+                //   被攻击时不等用户点"同意"，先用高频压制按住流氓软件 ✓
+                Emergency.Init(ToolDir, cfg, Log);
+                Emergency.AlertSink = kind =>
+                {
+                    // ① 全屏红警：告诉用户"我们被打了"并给几个强硬选项 ✓
+                    EmergencyWarning.Show(kind);
+                    // ② 再走原有的"被干扰"告警：它负责把证据写进 TAMPER.log ✓
+                    SelfProtect.AlertTamper("emergency-" + kind);
+                };
+                Log("[应急] mode=" + (cfg.Emergency == null || cfg.Emergency.Enabled
+                    ? "armed" : "off"));
+
                 // ★★★ 启动时自校验（防调包，用户 2026-10-09 的要求）
                 //     "发现它被调包了就能拉停，而不是被感染"
                 if (cfg.SelfCheckOnStart)
@@ -910,6 +973,14 @@ namespace WARDEN
                     + $"  已永久授权 {cfg.ConsentedProcesses?.Count ?? 0} 个程序");
                 Log($"  演习模式={protect.DryRun}  允许强杀={action.AllowTerminate}  "
                     + $"动手门槛={weights.ApplyThreshold}  强杀门槛={weights.TerminateThreshold}");
+
+                // ★ 看门狗线程（主循环卡住时留下证据）
+                var watchdog = new Thread(WatchdogThread)
+                {
+                    IsBackground = true,
+                    Name = "WARDEN-Watchdog",
+                };
+                watchdog.Start();
 
                 var evt = new Thread(EventThread) { IsBackground = true, Name = "winevent" };
                 evt.Start();
@@ -977,17 +1048,45 @@ namespace WARDEN
                         break;
                     }
 
+                    // ★★★ 停止请求必须带【合法令牌】（用户 2026-10-10 指出的漏洞）：
+                    //   随便写个 .stop 就能关掉 WARDEN 是不行的 ✗
+                    //   令牌不对 → 这是有人在偷偷关我们 → 记篡改 + 触发应急压制 ✓
                     if (File.Exists(StopPath))
                     {
-                        Log("检测到 stop 文件，退出");
+                        string req = "";
+                        try { req = File.ReadAllText(StopPath); } catch { }
+                        if (StopToken.Verify(ToolDir, req, m => Log(m)))
+                        {
+                            Log("停止请求已验证 ✓ 退出");
+                            try { File.Delete(StopPath); } catch { }
+                            break;
+                        }
+
+                        // ★ 令牌不对 —— 有人在试图偷偷关掉我们 ✗
+                        Log("[篡改] 停止令牌无效，已拒绝（长度=" + req.Length + "）");
                         try { File.Delete(StopPath); } catch { }
-                        break;
+                        SelfProtect.AlertTamper("fake-stop");
+                        Emergency.Trigger("fake-stop");
+                        // ★ 注意：不 break —— 我们继续运行 ✓
+                    }
+
+                    // ★★★ A46 应急压制：每一圈压一遍（应急时主循环缩短到 50ms）✓
+                    //   ★ 放在"暂停"判断【之前】：托盘暂停是别管网上的弹窗，
+                    //     但"自己被攻击"是另一回事 —— 不能因为暂停就任人宰割 ✓
+                    try
+                    {
+                        Emergency.Tick(engine);
+                    }
+                    catch (Exception tickEx)
+                    {
+                        Log("[应急] tick 异常: " + tickEx.Message);
                     }
 
                     // ★ 暂停中 → 跳过这一轮扫描（但消息照常处理 ✓）
                     if (_tray != null && _tray.IsPaused)
                     {
-                        Thread.Sleep(SweepIntervalMs);
+                        Stage("一轮扫完");
+                    Thread.Sleep(Emergency.SweepMs(SweepIntervalMs));
                         continue;
                     }
 
@@ -999,6 +1098,7 @@ namespace WARDEN
                         //    导致升级阶梯失效（2026-10-09 红队测试抓到的 bug）
                         var fresh = LoadConfig();
                         engine.UpdateConfig(fresh);
+                        Emergency.Reconfigure(fresh);
                         // ★ A52A：重置本轮的"同步发送"预算（防止被窗口轰炸拖死）✓
                         engine.BeginSweep();
                         protect = fresh.Protect ?? new Protect();
@@ -1024,7 +1124,9 @@ namespace WARDEN
                         IntPtr fg = Native.GetForegroundWindow();
                         Native.GetWindowThreadProcessId(fg, out uint fgPid);
 
+                        Stage("枚举窗口");
                         var all = WindowInfo.Enumerate();
+                        Stage("窗口已枚举");
                         // ★★★ 空标题窗口也要纳入评估 ✗
                         //     为什么：流氓软件会用"有窗口、有类名、标题留空"来绕过标题匹配 ✗
                         //     （2026-10-09 红队 Ultra 的 U6 场景实测打穿了这一层）
@@ -1115,7 +1217,9 @@ namespace WARDEN
                                     + $"{score.Why}");
                             }
 
+                            Stage("处置窗口");
                             var lvl = engine.Act(w, score.Score, rec, protect.DryRun);
+                            Stage("窗口已处置");
                             if (lvl != ActionLevel.None)
                             {
                                 {
@@ -1180,7 +1284,8 @@ namespace WARDEN
                         Log("扫描异常: " + e.Message);
                     }
 
-                    Thread.Sleep(SweepIntervalMs);
+                    Stage("一轮扫完");
+                    Thread.Sleep(Emergency.SweepMs(SweepIntervalMs));
                 }
 
                 // ★★★ 退出前【必须】移除托盘图标 ✗

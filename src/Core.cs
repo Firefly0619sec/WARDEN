@@ -546,6 +546,8 @@ namespace WARDEN
         /// </summary>
         public string Proc = string.Empty;
 
+
+
         public int WindowsSeen;
 
         /// <summary>我们尝试关闭过几次。</summary>

@@ -259,6 +259,9 @@ namespace WARDEN
         /// </summary>
         public ActionLevel Act(WindowInfo w, int score, BehaviorRecord rec, bool dryRun)
         {
+            // ★ A52A：记下最近一次评分 —— 应急选址要靠它判断"该压谁" ✓
+            rec.LastScore = score;
+
             var pol = Policy;
 
             // 还没到动手门槛：只观察
