@@ -356,3 +356,14 @@ WARDEN 设置=WARDEN 設定
  条（缺少名称或匹配条件）= (missing a name or match criteria)
 记得点「保存配置」才会生效 ✓=Remember to click "Save settings" to apply ✓
 ★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。=★ 勾選 = 啟用該規則。"處理程序"和"標題關鍵詞"至少要填一個。
+打开设置界面=Open settings
+暂停守护=Pause protection
+继续守护=Resume protection
+重新加载配置=Reload settings
+查看日志=View logs
+检查更新=Check for updates
+卸载 WARDEN=Uninstall WARDEN
+退出=Quit
+WARDEN（守护中）=WARDEN (guarding)
+WARDEN（已暂停守护）=WARDEN (paused)
+WARDEN（应急压制中）=WARDEN (emergency suppression)

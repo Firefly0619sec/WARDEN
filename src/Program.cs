@@ -1072,7 +1072,11 @@ namespace WARDEN
                 // ★ 自保护失败不能拖垮主功能 ✗ 但也不能静默 ✓
                 Log("[SELFPROTECT] setup failed: " + ex.Message);
             }
-                    _tray.SetTooltip("WARDEN（守护中）");
+                // ★ 语言包诊断（用户报"菜单还是英文/中文"时一眼看出 ✓）
+                Log("[语言] 主程序语言=" + L.Code
+                    + "  菜单示例=" + L.T("暂停守护")
+                    + "  提示示例=" + L.T("WARDEN（守护中）"));
+                    _tray.SetTooltip(L.T("WARDEN（守护中）"));
                 }
                 else
                 {
