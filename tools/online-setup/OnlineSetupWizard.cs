@@ -35,7 +35,7 @@ namespace WardenOnlineSetup
     {
         private const string Owner = "Firefly0619sec";
         private const string Repo = "WARDEN";
-        private const string Version = "0.2.2";
+        private const string Version = "0.2.3";
         private static readonly string ApiLatest = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
         private static readonly string ApiList = $"https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static readonly string Releases = $"https://github.com/{Owner}/{Repo}/releases";
@@ -51,7 +51,9 @@ namespace WardenOnlineSetup
 
         // ------------------------------------------------------------ Win32
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr CreateWindowExW(
-            uint ex, string cls, string text, uint style, int x, int y, int w, int h,
+            uint ex,
+            [MarshalAs(UnmanagedType.LPWStr)] string cls,
+            [MarshalAs(UnmanagedType.LPWStr)] string text, uint style, int x, int y, int w, int h,
             IntPtr parent, IntPtr menu, IntPtr inst, IntPtr param);
         [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr h);
         [DllImport("user32.dll")] private static extern int GetMessageW(out MSG m, IntPtr h, uint a, uint b);
@@ -77,11 +79,22 @@ namespace WardenOnlineSetup
         [DllImport("comctl32.dll")] private static extern bool InitCommonControlsEx(ref ICC icc);
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr ShellExecuteW(
             IntPtr h, string op, string file, string param, string dir, int show);
-        [DllImport("kernel32.dll")] private static extern IntPtr GetModuleHandleW(string? n);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandleW([MarshalAs(UnmanagedType.LPWStr)] string? n);
 
         [StructLayout(LayoutKind.Sequential)] private struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public int x, y; }
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct WNDCLASS { public uint style; public IntPtr lpfnWndProc; public int cbClsExtra, cbWndExtra; public IntPtr hInstance, hIcon, hCursor, hbrBackground; public string? menu, cls; }
+        private struct WNDCLASS
+        {
+            public uint style;
+            public IntPtr lpfnWndProc;
+            public int cbClsExtra, cbWndExtra;
+            public IntPtr hInstance, hIcon, hCursor, hbrBackground;
+            // ★ AOT 下结构体里的字符串必须显式声明 LPWStr ✗
+            //   否则封送走的是"运行时生成的存根"✗ 在 Native AOT 里会直接
+            //   fail-fast（0xC0000409 ✓ 连托管异常都进不去 ✗ 所以没有崩溃日志 ✓）
+            [MarshalAs(UnmanagedType.LPWStr)] public string? menu;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? cls;
+        }
         [StructLayout(LayoutKind.Sequential)] private struct ICC { public uint size, icc; }
 
         private const uint WS_CHILD = 0x40000000, WS_VISIBLE = 0x10000000, WS_TABSTOP = 0x00010000;
@@ -131,7 +144,24 @@ namespace WardenOnlineSetup
                 Console.WriteLine((m0.Success ? m0.Groups[1].Value : "?") + T("   ← 最新版本", "  <- latest"));
                 return m0.Success ? 0 : 2;
             }
-            return RunGui();
+            try
+            {
+                return RunGui();
+            }
+            catch (Exception ex)
+            {
+                // ★ 调试用：窗口起不来时把异常写下来（不再靠猜 ✓）
+                try
+                {
+                    File.WriteAllText(Path.Combine(Path.GetTempPath(),
+                        "WARDEN-Online-Setup-crash.log"),
+                        DateTime.Now.ToString("HH:mm:ss") + "  " + ex + Environment.NewLine,
+                        new UTF8Encoding(false));
+                }
+                catch { }
+                MessageBoxW(IntPtr.Zero, ex.Message, "WARDEN 在线安装器 —— 启动失败", 0x10);
+                return 9;
+            }
         }
 
         // ------------------------------------------------------------ 窗口
@@ -164,6 +194,8 @@ namespace WardenOnlineSetup
             var sml = CreateFontW(-14, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
 
             // ★ 蓝色标题区（照离线安装包 ✓）
+            bool min = Environment.GetEnvironmentVariable("WARDEN_MIN") == "1";
+            if (min) { MessageBoxW(IntPtr.Zero, "MIN OK", "test", 0); }
             _hTitle = Mk("STATIC", "WARDEN " + T("在线安装", "online setup"), 0, 0, w, 46, big);
             _hSub = Mk("STATIC", T("自动获取最新版，下载后先校验 SHA256 再交给安装向导 ✓",
                                    "Fetches the latest release, verifies SHA256, then hands off to the installer"),
@@ -178,6 +210,7 @@ namespace WardenOnlineSetup
                                   "★ The app itself is offline; only this window contacts GitHub.\n"
                                   + "★ If the hash does not match, it refuses to install."),
                         24, 206, w - 48, 50, sml);
+            if (min) { ShowWindow(_w, SW_SHOW); UpdateWindow(_w); MessageBoxW(_w, "WINDOW+LOOP OK", "test", 0); }
             _hManual = Mk("BUTTON", T("手动下载", "Download page"), 24, 300, 130, 34, mid);
             _hCancel = Mk("BUTTON", T("取消", "Cancel"), 424, 300, 110, 34, mid);
             _hOk = Mk("BUTTON", T("开始安装", "Install now"), 544, 300, 140, 38, mid);
@@ -198,6 +231,7 @@ namespace WardenOnlineSetup
 
         private static IntPtr Mk(string cls, string text, int x, int y, int w, int h, IntPtr font)
         {
+            if (Environment.GetEnvironmentVariable("WARDEN_MIN") == "1") { return IntPtr.Zero; }
             IntPtr hh = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | WS_TABSTOP,
                                         x, y, w, h, _w, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
             if (font != IntPtr.Zero) { SendMessageW(hh, WM_SETFONT, font, (IntPtr)1); }
@@ -213,16 +247,6 @@ namespace WardenOnlineSetup
         {
             switch (m)
             {
-                case WM_CTLCOLORSTATIC:
-                    // ★ 标题区两行：白字 + 蓝底（其余行保持默认 ✓）
-                    if (lp == _hTitle || lp == _hSub)
-                    {
-                        SetTextColor(wp, WHITE);
-                        SetBkColor(wp, BLUE);
-                        SetBkMode(wp, 1);   // TRANSPARENT
-                        return _blueBrush;
-                    }
-                    break;
                 case WM_UPDATE:
                     SendMessageW(_hBar, PBM_SETPOS, (IntPtr)_percent, IntPtr.Zero);
                     SetText(_hStatus, _status);

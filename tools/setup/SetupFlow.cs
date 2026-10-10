@@ -21,7 +21,7 @@ namespace WardenSetup
     internal static class SetupCore
     {
         private const string PayloadName = "payload.zip";
-        private const string Version = "0.2.2";
+        private const string Version = "0.2.3";
         public const string RedTeamExe = "WARDEN-RedTeam.exe";
 
         private static void L(string s) => SetupLog.Line("setup", s);
