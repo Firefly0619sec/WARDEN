@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  WARDEN 在线安装器 —— 向导版（2026-10-11 第三版 · 任务 5）
 // ============================================================================
 //  【用户的原设计（这版才真正做到 ✓）】
@@ -197,7 +197,7 @@ namespace WardenOnlineSetup
             RegisterClassW(ref wc);
             _brBlue = CreateSolidBrush(BLUE);
 
-            int w = 780, h = 560;
+            int w = 820, h = 700;
             _w = CreateWindowExW(0, "WARDENOnlineSetup3", T("WARDEN 在线安装", "WARDEN online setup"),
                  WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
                  (GetSystemMetrics(0) - w) / 2, (GetSystemMetrics(1) - h) / 2, w, h,
@@ -209,13 +209,13 @@ namespace WardenOnlineSetup
             _fBody = CreateFontW(-15, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
             _fSmall = CreateFontW(-13, 0, 0, 0, 400, 0, 0, 0, 134, 0, 0, 0, 0, "Microsoft YaHei UI");
 
-            _hBar = Mk("msctls_progress32", "", 32, 470, w - 64, 22, IntPtr.Zero);
+            int cy = h - 31;   // 客户区高度（减掉标题栏 ✓）`n            _hBar = Mk("msctls_progress32", "", 32, cy - 96, w - 64, 22, IntPtr.Zero);
             SendMessageW(_hBar, PBM_SETRANGE, IntPtr.Zero, (IntPtr)((100 << 16) | 0));
 
-            _hBack = Mk("BUTTON", T("上一步", "Back"), 32, 508, 100, 34, _fBody);
-            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 142, 508, 130, 34, _fBody);
-            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 500, 508, 100, 34, _fBody);
-            _hNext = Mk("BUTTON", T("正在检查…", "Checking…"), 610, 508, 138, 38, _fBody);
+            _hBack = Mk("BUTTON", T("上一步", "Back"), 32, cy - 52, 110, 34, _fBody);
+            _hManual = Mk("BUTTON", T("手动下载", "Download page"), 152, cy - 52, 140, 34, _fBody);
+            _hCancel = Mk("BUTTON", T("取消", "Cancel"), 520, cy - 52, 110, 34, _fBody);
+            _hNext = Mk("BUTTON", T("正在检查…", "Checking…"), 640, cy - 56, 148, 40, _fBody);
 
             ShowWindow(_w, SW_SHOW);
             UpdateWindow(_w);
@@ -247,13 +247,13 @@ namespace WardenOnlineSetup
         private static void Draw(IntPtr dc)
         {
             int page = _page;
-            // ★ 蓝色标题区（自绘 ✓）
-            IntPtr ob = SelectObject(dc, _brBlue);
-            IntPtr r = CreateRectRgn(0, 0, 1, 1);
-            // 用 FillRect 需要 user32 ✓ 这里直接用 PatBlt 更省事：用 Rectangle
-            SelectObject(dc, ob);
-            // 手工填矩形（PatBlt）
-            PatBlt(dc, 0, 0, 4000, HDR, 0x00F00021 /*PATCOPY*/);
+            // ★ ① 先把客户区擦成对话框底色 —— 不擦的话每次重绘都会叠字（重影）✗
+            GetClientRect(_w, out RECT cr);
+            FillRect(dc, ref cr, GetSysColorBrush(15 /*COLOR_3DFACE*/));
+            // ★ ② 蓝色标题区（FillRect ✓ 上一版用 PatBlt 没画出来 ✗）
+            RECT hr = new RECT { l = 0, t = 0, r = cr.r, b = HDR };
+            FillRect(dc, ref hr, _brBlue);
+            IntPtr ob = GetSysColorBrush(15);
 
             SetBkMode(dc, 1);
             SetTextColor(dc, WHITE);
@@ -334,7 +334,6 @@ namespace WardenOnlineSetup
                 }
             }
             SelectObject(dc, of);
-            DeleteObject(r);
         }
 
         [DllImport("gdi32.dll")] private static extern bool PatBlt(IntPtr dc, int x, int y, int w, int h, uint rop);
