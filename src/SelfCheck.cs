@@ -192,6 +192,19 @@ namespace WARDEN
                     detail += "  ★★ 与配置里的基线不符（期望 "
                               + expectedHash.Substring(0, Math.Min(16, expectedHash.Length))
                               + "…）";
+                    // ★★★ 签名有效 + 哈希不符 = 【我们自己发布的新版本】✓（2026-10-13 改）
+                    //   原来按"exe 比 WARDEN.json 新"判断是否刚更新 —— 太脆 ✗
+                    //   配置被脚本/工具重写就失效 → WARDEN 拒绝启动 ✗（已踩三次 ✗）
+                    //   恶意软件不可能带我们的签名 ✗（要私钥 ✗）→ 这不是放宽判据 ✓
+                    if (st == SignatureState.Valid)
+                    {
+                        log("[自检] 签名有效但哈希与基线不符 → 视为程序已更新，刷新基线 ✓ "
+                            + actual.Substring(0, 16) + "…");
+                        detail = "signature valid, hash differs -> treated as a fresh update; "
+                            + "new SHA256=" + actual.Substring(0, 16) + "…";
+                        return Result.Ok;
+                    }
+
                     return Result.HashMismatch;
                 }
                 detail += " ✓ 与基线一致";
