@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A33 在线安装器（Beta 2）：原生 AOT 控制台，体积约 1~2 MB ✓ 不依赖 .NET 运行时 ✓ -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>WARDEN-Online-Setup</AssemblyName>
+    <RootNamespace>WardenOnlineSetup</RootNamespace>
+    <AssemblyTitle>WARDEN 在线安装器</AssemblyTitle>
+    <Product>WARDEN</Product>
+    <Version>0.1.0-beta.2</Version>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+</Project>
