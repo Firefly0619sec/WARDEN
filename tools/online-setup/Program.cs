@@ -33,7 +33,7 @@ namespace WardenOnlineSetup
     {
         private const string Owner = "Firefly0619sec";
         private const string Repo = "WARDEN";
-        private const string Version = "0.2.1";
+        private const string Version = "0.2.2";
         private static readonly string ApiList =
             $"https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static readonly string ApiLatest =
