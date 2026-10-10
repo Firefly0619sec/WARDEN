@@ -161,12 +161,12 @@ namespace WardenSettings
             var lblLang = new Label
             {
                 Text = WardenLang.Lang.T("set.lang.label"),
-                Bounds = new Rectangle(12, 12, 80, 20),
+                Bounds = new Rectangle(600, 16, 80, 20),
             };
             _cbLang = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Bounds = new Rectangle(96, 10, 130, 22),
+                Bounds = new Rectangle(684, 14, 136, 22),
             };
             foreach (string code in WardenLang.Lang.Available())
             {
