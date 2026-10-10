@@ -1,0 +1,274 @@
+# ============================================================================
+#  WARDEN 语言包 —— 简体中文
+# ============================================================================
+#  【怎么用】
+#    这个文件是纯文本，用记事本就能改。
+#    想加一门语言：复制一份改成 en.txt 放进
+#      %LOCALAPPDATA%\WARDEN\lang\
+#    程序会自动认出来，不用重新编译。
+#
+#  【格式】
+#    [meta]      语言信息       key=value
+#    [ui]        界面文字       key=value
+#    [log.tag]   日志前缀名     key=value
+#    [log.rule]  日志整行翻译   正则<TAB>译文
+#               译文里 {1} {2} 引用正则的捕获组
+#               规则按顺序匹配，第一条命中的生效
+#    以 # 开头是注释
+#
+#  【★ 请勿改 key，只改等号/制表符右边的内容】
+# ============================================================================
+
+[meta]
+code=zh-Hans
+name=简体中文
+
+[ui]
+app.title=WARDEN
+app.subtitle=視窗行为拦截工具
+common.ok=确定
+common.cancel=取消
+common.close=關闭
+common.yes=是
+common.no=否
+common.refresh=刷新
+common.browse=浏览...
+common.back=上一步
+common.next=下一步
+common.finish=完成
+common.install=安裝
+common.retry=重试
+log.title=WARDEN 日誌分析
+log.summary.empty=日誌里沒有可分析的事件。
+log.filter.label=只看：
+log.filter.all=全部事件
+log.filter.important=★ 只看着重事件
+log.filter.kill=強制結束
+log.filter.denied=拒絕強殺
+log.filter.hide=隱藏与劝退
+log.filter.consent=授權彈窗
+log.filter.guard=复活与守護
+log.filter.config=自检与配置
+log.filter.error=錯誤
+log.onlyImportant=只看值得注意的
+log.col.time=時间
+log.col.tag=类型
+log.col.what=發生了什么
+log.btn.openFolder=打開日誌檔案夹
+log.btn.copy=复制诊断資訊
+log.tip.copy=★ 報問题時把「诊断資訊」贴给開發者即可
+log.noLog=★ 还沒有日誌檔案。WARDEN 運行過一次之后才會有日誌。
+log.untagged=(啟動資訊)
+log.untranslated=（這行語言包里还沒有译文，可以补上）
+log.analyzing=正在分析…
+log.diag.copied=诊断資訊已复制到剪贴板。
+set.title=WARDEN 設定
+set.tab.rules=規則
+set.tab.protect=保護
+set.tab.action=處置
+set.tab.lists=名單
+set.tab.safety=安全
+set.tab.log=日誌
+set.save=儲存配置
+set.reload=重新載入
+set.status.running=状态：✓ 運行中（PID {0}）
+set.status.stopped=状态：· 未運行
+set.status.hint=★ 啟動：双击桌面上的 WARDEN；停止或暫停：右鍵右下角托盤圖標
+set.lang.label=介面語言：
+tray.openSettings=打開設定介面
+tray.pause=暫停守護
+tray.resume=继续守護
+tray.reload=重新載入配置
+tray.viewLog=查看日誌
+tray.checkUpdate=檢查更新
+tray.uninstall=卸載 WARDEN
+tray.exit=結束
+upd.title=WARDEN 檢查更新
+upd.current=當前版本 {0}
+upd.privacy=★ 本程序不联网收集任何資訊。只有你点「檢查更新」時，它才會访問 GitHub 一次。
+upd.check=檢查更新
+upd.download=下載并安裝
+upd.openPage=打開發布页
+upd.notChecked=尚未檢查。
+upd.checking=正在访問 GitHub…
+upd.upToDate=已经是最新版本 ✓
+upd.newer=發現新版本：{0}（當前 {1}）
+upd.dev=你的版本比發布版还新（開發版？）
+upd.failed=檢查失敗：網路不可達，或还沒有發布過版本
+upd.downloading=正在下載… {0}%  ({1} / {2} MB)
+upd.done=下載完成，準备安裝
+upd.dlFailed=下載失敗
+un.title=卸載 WARDEN
+un.heading=即将卸載 WARDEN
+un.start=開始卸載
+un.keepNote=保留配置与日誌（我想留個記錄）
+un.done=卸載完成
+un.certNote=★ 还有一樣东西沒有刪：數字簽名證书
+setup.title=WARDEN 安裝程序
+setup.welcome=欢迎安裝 WARDEN
+setup.agree=我已阅读并同意上述許可协议
+setup.where=選择安裝位置
+setup.components=選择要安裝的内容
+setup.installing=正在安裝
+setup.installed=安裝完成
+setup.dirOk=✓ 這個位置可以使用
+setup.locked=★ 以下组件是 WARDEN 的功能组成，必须安裝（不能取消）
+setup.optional=以下是可以選的：
+setup.desktop=在桌面创建快捷方式
+setup.autostart=開機時自動啟動 WARDEN（建议：等你用熟了再開）
+setup.openSettings=立即打開設定介面
+setup.startWarden=立即啟動 WARDEN（開始守護）
+submit.title=一鍵提交反馈
+submit.explain=不需要 GitHub 賬号，填完点提交就行。
+
+[log.tag]
+SCORE=评估
+DECISION=决策
+L1-CLOSE=礼貌關闭
+L2-HIDE=隱藏
+L2-DISMISS=劝退
+L3-KILL=強制結束
+KILL-DENIED=拒絕強殺
+KILL-ESCALATED=手動提權
+KILL-FAIL=強殺失敗
+GUARD=守護检测
+CONSENT-OK=授權通過
+CONSENT-KEEP=继续隱藏
+CONSENT-SKIP=跳過詢問
+STAGE2=第二段判據
+DRYRUN=演习模式
+CLEARED=已解决
+RECORD=記錄
+TRAY=托盤
+MSGWND=消息視窗
+MIGRATE=數據迁移
+STATUS=状态
+CONFIG=配置校驗
+SELFCHECK=自校驗
+ERROR=(啟動資訊)
+
+[log.rule]
+# 顺序很重要：越具体的规则要放越前面
+# 译文里的 {1} {2} 是对应正则括号捕获到的内容
+^config changed.*$	配置内容变了 → 重新校验一遍
+^validation done:\s*(\d+)\s*error\(s\),\s*(\d+)\s*warning\(s\)$	校验完成：{1} 个错误、{2} 个警告
+^validation done:\s*(.*)$	校验完成：{1}
+^\[CONFIG\]\s*\[WARN\]\s*(.*?)\s*->\s*(.*)$	★ 配置警告：{1}
+　　建议：{2}
+^\[CONFIG\]\s*\[ERROR\]\s*(.*?)\s*->\s*(.*)$	★★ 配置错误：{1}
+　　建议：{2}
+^\[CONFIG\]\s*(.*)$	配置校验：{1}
+^default config created:\s*(.*)$	第一次运行，已生成默认配置：{1}
+^loaded config from\s*(.*)$	已读取配置：{1}
+^started pid=(\d+).*$	WARDEN 啟動（進程号 {1}）
+^started\s*(.*)$	WARDEN 启动 {1}
+^exit\s*(.*)$	WARDEN 退出 {1}
+^stop file.*$	收到停止信号 → 退出
+^winevent hooks.*$	已挂钩窗口事件监听：{0}
+^hard-block=(.*)$	安全閘（硬黑名單）：{1}
+^sandbox=(.*)$	運行模式：{1}
+^sig-gate=(.*)$	簽名閘：{1}
+^consent=(.*)$	彈窗詢問設定：{1}
+^dry-run=(.*)$	處置設定：{1}
+^\[SCORE\]\s*(.*)$	评估行为分：{1} → 达到门槛，准备处置
+^\[DECISION\]\s*(.*)$	决策依据：{1}
+^\[L1-CLOSE\]\s*(.*)$	① 礼貌请求关闭：{1}
+^\[L2-HIDE\]\s*(.*)$	② 隐藏窗口并请求关闭：{1}
+　　（受保护的进程只用温和手段）
+^\[L2-DISMISS\]\s*(.*)$	② 劝退（先隐藏再请求关闭）：{1}
+^\[L3-KILL\]\s*(.*)$	③ 强制结束进程：{1}
+^\[KILL-ESCALATED\]\s*(.*)$	★★ 手动提权生效 —— 你当场同意了，所以这次动手了：{1}
+^\[KILL-DENIED\]\s*(.*)$	★ 没有动手：{1}
+　　（安全闸把它拦住了，这是保护机制在起作用）
+^\[KILL-FAIL\]\s*(.*)$	★ 强制结束失败：{1}
+^\[GUARD\]\s*(.*)$	★★ 发现"杀了又回来"：{1}
+　　建议用 Geek Uninstaller 之类的专业工具彻底卸载它
+^\[CONSENT-OK\]\s*(.*)$	★ 你授权了强制手段：{1}
+^\[CONSENT-KEEP\]\s*(.*)$	★ 你选择继续隐藏：{1}
+^\[CONSENT-SKIP\]\s*(.*)$	跳过询问：{1}
+^\[STAGE2\]\s*(.*)$	第二段判据（确认压不住）：{1}
+^\[DRYRUN\]\s*(.*)$	【演习模式】本来应该执行：{1}
+　　（演习模式只记日志、不动手）
+^\[CLEARED\]\s*(.*)$	✓ 窗口自己关掉了，问题解决：{1}
+^\[RECORD\]\s*(.*)$	行为记录：{1}
+^\[TRAY\]\s*(.*)$	托盘操作：{1}
+^\[MSGWND\]\s*(.*)$	消息窗口：{1}
+^\[MIGRATE\]\s*(.*)$	旧版数据迁移：{1}
+^\[STATUS\]\s*(.*)$	状态变化：{1}
+^\[SELFCHECK\]\s*(.*)$	启动自校验：{1}
+^\[ERROR\]\s*(.*)$	★ 出错了：{1}
+
+# ── 帮助中心（教程页）──────────────────────────────────────────
+help.title=WARDEN 使用教程
+help.heading=WARDEN 使用教程
+help.subheading=左边点章节，右边看内容。看完這三节就會用了。
+help.btn.feedback=反馈問题
+help.btn.openPage=打開發布页
+help.btn.settings=打開設定介面
+help.openFailed=打不開浏览器：
+help.siblingMissing=找不到 {0}。\n\n這說明安裝不完整（正常安裝時它是必装的）。\n请重新運行 WARDEN 安裝包修复。
+
+help.sec.quick.title=① 三分钟上手
+help.sec.quick.body=WARDEN 装好之后，它在后台默默看着視窗，你不用管它。\n\n要看它在不在：看右下角托盤区（時钟旁边）有沒有一個号角手圖標。\n\n第一次啟動時它會問你一個問题：\n要不要先開「演习模式」？\n  · 演习模式 = 只記日誌、不動手，适合先观察幾天\n  · 不開 = 立刻開始拦視窗\n\n装完就能用，不需要注册、不需要联网。
+
+help.sec.tray.title=② 托盤圖標怎么用
+help.sec.tray.body=在右下角托盤圖標上【点右鍵】，會出現這些：\n\n  打開設定介面      改規則、改门檻\n  暫停守護 / 继续守護  临時让它歇一會儿（開了之后就是"继续守護"）\n  重新載入配置      改完配置檔案后点這個，不用重啟\n  查看日誌          看它到底做了什么（全中文）\n  檢查更新          去 GitHub 看有沒有新版本\n  卸載 WARDEN       不想要了\n  結束              彻底關掉\n\n★ 双击托盤圖標 = 直接打開設定介面（最快）。
+
+help.sec.blocked.title=③ 被拦了 / 沒拦住 怎么办
+help.sec.blocked.body=【它太激進，拦了我正在用的东西】\n  打開設定介面 → 「保護」標簽页\n  确认三個"防誤伤"開關都是開着的（預設就是開的）\n  还是不行 → 「名單」標簽页，把那個程序加進白名單\n\n【彈窗还是照樣冒出来】\n  ① 打開「日誌分析」看看它在做什么\n  ② 如果日誌里写着【演习模式】，說明它只在观察沒動手\n     去設定介面關掉演习模式即可\n  ③ 如果写着「拒絕強殺」，說明安全閘拦住了\n     這是保護機制，不是坏了\n\n【有個程序殺了又回来】\n  日誌里會出現「守護检测」\n  說明那個程序自己带守護進程，WARDEN 殺它它會自己重啟\n  這种情况建议用 Geek Uninstaller 之类的工具彻底卸載它。
+
+help.sec.dryrun.title=④ 演习模式是什么
+help.sec.dryrun.body=演习模式 = 只記日誌，不動手。\n\n什么時候用：\n  · 刚装上，想先看看它會拦哪些視窗，担心誤伤\n  · 出了問题想留證據给開發者看\n\n怎么開關：設定介面 → 「保護」標簽页 → 演习模式\n\n★ 關掉它才會真的拦視窗。第一次啟動時會問你一次。\n★ 開着的時候日誌會写 [DRYRUN]，日誌分析里會显示"本该执行……"。
+
+help.sec.rules.title=⑤ 怎么加自己的規則
+help.sec.rules.body=設定介面 → 「規則」標簽页 → 「新增規則」\n\n一條規則需要：\n  名称       随便起，写清楚是哪個軟體，方便以后认\n  進程名     比如 qq.exe（只写檔案名，不要写完整路徑）\n  標题關鍵词  標题里包含這些词就命中，如 活動、福利、推荐\n  或 標题正則  更灵活，但要小心别写太宽泛導致誤伤\n\n★ 規則只是"起点"，是否動手还要看综合行为分\n  （短時间内疯狂新建視窗、反复抢前台、被關又回来……）\n  所以規則写宽一点也不會乱殺 ✓
+
+help.sec.safety.title=⑥ 安全說明（重要）
+help.sec.safety.body=★ WARDEN 本体【完全不联网】。\n  只有你点「檢查更新」時，更新器才會访問 GitHub 一次。\n\n★ 安全与保護開關【預設全開】：\n  簽名閘 / 白名單禁殺 / 啟動自校驗 / 自身被改動就拉停\n  三個防誤伤開關（前台視窗不碰、含输入框不碰、含子控件不碰）\n\n★ 有合法數字簽名的程序：預設不硬殺，最多隱藏或请求關闭\n\n★ 強制手段預設【不預先授權】：\n  遇到壓不住的視窗它會問你要不要動手，你當场同意才動一次\n  這叫"手動提權"，你始终握有决定權\n\n★ 更新包會校驗 SHA256 和數字簽名，任何一项不对都會拒絕安裝
+
+help.sec.update.title=⑦ 怎么更新
+help.sec.update.body=托盤圖標右鍵 → 「檢查更新」\n\n兩條通道：\n  正式版    稳定，推荐\n  Beta 版   尝鲜，可能有 bug（想帮忙测试就選這個）\n\n★ 连不上 GitHub 怎么办：\n  程序不會卡死，會告诉你怎么回事，并给出替代方案\n  （打開發布页用浏览器下載 / 檢查代理 / 换個時间再试）\n\n★ 从别處拿到安裝包時，务必右鍵 → 属性 → 數字簽名，\n  确认簽名者是 Firefly0619sec 再運行
+
+help.sec.uninstall.title=⑧ 怎么卸載
+help.sec.uninstall.body=三种方式，任選一种：\n\n  ① 控制面板 → 程序和功能 → WARDEN → 卸載\n  ② 開始選單 → WARDEN 檔案夹 → 卸載\n  ③ 托盤圖標右鍵 → 卸載 WARDEN\n\n卸載時：\n  · 可以勾選"保留配置与日誌"\n  · 程序目錄會在卸載視窗關闭后才消失（正常現象）\n  · 最后會告诉你"數字簽名證书沒有刪"，以及怎么手動刪
+
+help.sec.faq.title=⑨ 常见問题
+help.sec.faq.body=【托盤圖標不见了】\n  可能被折叠了：点托盤区的向上箭头 ^ 找找\n  或者 WARDEN 已经結束了：看任务管理器有沒有 WARDEN.exe\n\n【設定介面打不開】\n  从托盤圖標右鍵 → 打開設定介面\n  还不行就重新運行安裝包（會修复缺失的组件）\n\n【改了配置檔案沒生效】\n  托盤右鍵 → 重新載入配置\n\n【殺毒軟體報警】\n  WARDEN 會读視窗資訊、結束進程，行为上和恶意軟體有相似處\n  這是誤報。可以把這個目錄加進殺軟白名單：\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【还是解决不了】\n  点下面的「反馈問题」，填完直接提交到 GitHub\n  沒有 GitHub 賬号也能用：一鍵复制，發给分發者帮你转交
+
+# ── 帮助中心（反馈页）──────────────────────────────────────────
+fb.title=反馈問题
+fb.heading=反馈問题 / 提建议
+fb.kind=类型：
+fb.kind.bug=問题（有东西坏了）
+fb.kind.idea=建议（想要新功能）
+fb.kind.other=其他
+fb.subject=標题：
+fb.detail=详细描述：
+fb.detailHint=越具体越好：你做了什么、期望什么、实际發生了什么
+fb.contact=联系方式：
+fb.contactHint=（可選）想让你回复的话填一個
+fb.attachDiag=附上诊断資訊（版本、系統、配置摘要、日誌摘要）
+fb.diagHint=★ 诊断資訊會把你路徑里的用戶名打码。\n★ 你点提交之前，這些内容哪里也不去。
+fb.preview=提交内容預览
+fb.btn.github=在 GitHub 上提交
+fb.btn.copy=复制内容
+fb.btn.save=存成檔案
+fb.defaultTitle=（请简單描述你遇到的問题）
+fb.tooLong=内容太长，GitHub 的链接装不下。
+fb.tooLongAsk=已经把完整内容复制到剪贴板了。\n\n点「是」打開 GitHub 新建 issue 页面，\n然后按 Ctrl+V 把内容粘進去。\n\n点「否」先不發。
+fb.copiedForPaste=已复制到剪贴板 —— 到 GitHub 页面后按 Ctrl+V 粘贴
+fb.openedInBrowser=已在浏览器打開，提交前请再确认一遍内容
+fb.copied=已复制到剪贴板
+fb.copiedLong=内容已复制到剪贴板。\n\n你可以把它發给分發者或群里，\n让有 GitHub 賬号的人帮你代發。\n\n★ 開通 GitHub 賬号只要一分钟，\n  而且以后能直接收更新通知。
+fb.saved=已儲存到：{0}
+fb.noAccountHint=★ 沒有 GitHub 賬号？点「复制内容」，發给分發者帮你转交就行。
+fb.r.kind=类型
+fb.r.contact=联系方式
+fb.r.detail=详细描述
+fb.r.diag=诊断資訊
+
+# ── 诊断信息小节标题 ─────────────────────────────────────────
+diag.env=环境
+diag.files=组件
+diag.config=配置摘要
+diag.log=日誌摘要
