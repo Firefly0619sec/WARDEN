@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ==========================================================================
+       WARDEN 卸载器（事故后重写，2026-10-10）
+       · WinForms 确认窗（默认保留用户数据 ✓）
+       · 复用 tools/setup 里的 StopToken.cs（写合法停止令牌，请主程序自己退出）✓
+       · 自包含单文件 + 压缩
+       ========================================================================== -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WARDEN-Uninstaller</AssemblyName>
+    <RootNamespace>WardenUninstall</RootNamespace>
+    <AssemblyTitle>WARDEN 卸载程序</AssemblyTitle>
+    <Product>WARDEN</Product>
+    <Version>0.1.0-beta.1</Version>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- ★ 复用安装器里的停止令牌实现（同一份逻辑，避免两边不一致 ✗） -->
+  <ItemGroup>
+    <Compile Include="..\setup\StopToken.cs">
+      <Link>StopToken.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+</Project>

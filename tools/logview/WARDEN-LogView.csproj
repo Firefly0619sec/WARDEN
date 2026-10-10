@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ==========================================================================
+       WARDEN 日志查看器（事故后重写，2026-10-10）
+       · WinForms：分类看日志、只看关键行、一键导出 Markdown 报告（B8）✓
+       · 自包含单文件 + 压缩
+       ========================================================================== -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WARDEN-LogView</AssemblyName>
+    <RootNamespace>WardenLogView</RootNamespace>
+    <AssemblyTitle>WARDEN 日志查看器</AssemblyTitle>
+    <Product>WARDEN</Product>
+    <Version>0.1.0-beta.1</Version>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+</Project>
