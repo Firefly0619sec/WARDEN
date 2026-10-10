@@ -168,18 +168,25 @@ namespace WardenSettings
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Bounds = new Rectangle(684, 14, 136, 22),
             };
-            // ★ 显示【名字】不显示代码（用户 2026-10-10 要求 ✗）
+            // ★★★ 语言列表（用户 2026-10-10 要求）：
+            //   正式版：只显示名字（«繁體中文（中國臺灣）» 一看就懂 ✓）
+            //   贝塔版：名字后面带 BCP47 代码 —— 给开发者/报 issue 用 ✓
+            bool showCode = System.Windows.Forms.Application.ProductVersion
+                .IndexOf("beta", StringComparison.OrdinalIgnoreCase) >= 0;
             foreach (string code in WardenLang.Lang.Available())
             {
-                _cbLang.Items.Add(WardenLang.Lang.DisplayName(code) + "  (" + code + ")");
+                _cbLang.Items.Add(showCode
+                    ? WardenLang.Lang.DisplayName(code) + "  (" + code + ")"
+                    : WardenLang.Lang.DisplayName(code));
             }
             if (_cbLang.Items.Count > 0)
             {
                 int idx = -1;
                     for (int i2 = 0; i2 < _cbLang.Items.Count; i2++)
                     {
-                        if ((_cbLang.Items[i2] as string ?? "").EndsWith(
-                                "(" + WardenLang.Lang.Code + ")"))
+                        string it = _cbLang.Items[i2] as string ?? "";
+                        if (it == WardenLang.Lang.DisplayName(WardenLang.Lang.Code)
+                            || it.EndsWith("(" + WardenLang.Lang.Code + ")"))
                         {
                             idx = i2;
                             break;
