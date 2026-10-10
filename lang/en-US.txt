@@ -76,7 +76,7 @@ set.status.running=Status: ✓ running (PID {0})
 set.status.stopped=Status: · not running
 set.status.hint=★ To start: double-click WARDEN on the desktop. To stop or pause: right-click the tray icon
 set.lang.label=Language:
-set.lang.hint=Pick a language, then click "Save settings" (bottom left). It takes effect the next time you open this window. ✓
+set.lang.hint=Pick a language, then click "Save settings" (bottom left). It takes effect the next time you open this window. Language packs live in the lang folder and are plain text — you can edit them in Notepad.
 Language packs live in the lang\ folder and are plain text — you can edit them in Notepad. ✓
 tray.openSettings=Open settings
 tray.pause=Pause protection
