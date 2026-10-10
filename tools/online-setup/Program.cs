@@ -34,6 +34,8 @@ namespace WardenOnlineSetup
         private const string Owner = "Firefly0619sec";
         private const string Repo = "WARDEN";
         private const string Version = "0.1.0-beta.2";
+        private static readonly string ApiList =
+            "https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static readonly string ApiLatest =
             $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
 
@@ -99,6 +101,7 @@ namespace WardenOnlineSetup
 
             // ---- ① 查最新 release ----
             string json;
+            bool isPre = false;
             try
             {
                 Console.WriteLine(T("正在查询最新版本…", "Checking the latest release…"));
@@ -106,6 +109,23 @@ namespace WardenOnlineSetup
             }
             catch (HttpRequestException ex)
             {
+                // ★ GitHub 的 releases/latest 会【跳过预发布版】✗
+                //   我们是 Beta，发布的就是预发布 → 退回 releases 列表取第一条 ✓
+                try
+                {
+                    Console.WriteLine(T("没有正式版 → 查预发布版…",
+                                        "No stable release -> checking pre-releases…"));
+                    string list = await http.GetStringAsync(ApiList);
+                    int cut = list.IndexOf("\"assets\"");
+                    json = cut > 0 ? list.Substring(0, cut + 4000) : list;
+                    isPre = json.Contains("\"prerelease\": true") || json.Contains("\"prerelease\":true");
+                    if (!json.Contains("tag_name"))
+                    {
+                        throw new HttpRequestException("empty list");
+                    }
+                }
+                catch (Exception)
+                {
                 Console.WriteLine();
                 Console.WriteLine(T("★ 查不到发布信息：", "★ Could not reach the release info: ") + ex.Message);
                 Console.WriteLine(T("  可能原因：没联网 ✗ 需要代理 ✗ 或仓库还没发布过版本 ✗",
@@ -114,12 +134,14 @@ namespace WardenOnlineSetup
                 Console.WriteLine();
                 Console.WriteLine(T("你可以手动下载：", "Download manually: "));
                 Console.WriteLine($"  https://github.com/{Owner}/{Repo}/releases");
-                return 2;
+                    return 2;
+                }
             }
 
             string tag = Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"") ?? "?";
             string rname = Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"") ?? tag;
-            Console.WriteLine(T("最新版本: ", "latest: ") + rname + "  (" + tag + ")");
+            Console.WriteLine(T("最新版本: ", "latest: ") + rname + "  (" + tag + ")"
+                + (isPre ? T("  ★ 预发布版（Beta）", "  ★ pre-release (Beta)") : ""));
             if (checkOnly)
             {
                 Console.WriteLine(T("✓ 只检查（--check）→ 不下载", "✓ check only (--check) → nothing downloaded"));
