@@ -172,7 +172,11 @@ namespace WARDEN
             }
 
             var sbTitle = new StringBuilder(Math.Max(512, len + 2));
-            Native.GetWindowTextW(h, sbTitle, sbTitle.Capacity);
+            // ★★ A52A 实测：这里原来直接用 GetWindowTextW ✗
+            //    它对【别的进程】的窗口会同步发送 WM_GETTEXT，
+            //    目标线程不泵消息时（流氓软件假死）我们会被卡在那里 ✗✗
+            //    → 改成防卡死版：先判卡死，再带 80ms 超时地问 ✓
+            GetTextSafe(h, sbTitle, sbTitle.Capacity);
 
             var sbClass = new StringBuilder(256);
             Native.GetClassNameW(h, sbClass, 256);
@@ -210,6 +214,74 @@ namespace WARDEN
 
             return w;
         }
+
+        /// <summary>
+        /// ★★★ 防卡死地取窗口标题（A52A 实测新增）。
+        ///
+        /// 【为什么不能用 GetWindowTextW】
+        ///   对别的进程的窗口，它会同步发送 WM_GETTEXT ✗
+        ///   对方线程不泵消息（假死/被挂起）→ 我们一直等 ✗✗
+        ///   实测后果：一轮扫描被拖到 69 秒，循环完全卡住
+        ///   （日志停在"即将取前台窗口"之后，连 .stop 都不再检查）
+        ///
+        /// 【现在的做法】
+        ///   ① IsHungAppWindow(h) 为真 → 直接放弃取标题（它已经卡死，问了就轮到我卡）
+        ///   ② 否则 SendMessageTimeoutW(WM_GETTEXT, SMTO_ABORTIFHUNG, 80ms)
+        ///      超时就当标题为空 ✓ 宁可少一个标题，也绝不把整个守护线程搭进去
+        /// </summary>
+        /// <summary>
+        /// ★ A52A：标题缓存（同一窗口 2 秒内只取一次）✓
+        ///   一轮扫描会枚举【三遍】，不缓存就要取三遍 ✗
+        /// </summary>
+        private static readonly Dictionary<IntPtr, KeyValuePair<long, string>> _titleCache
+            = new Dictionary<IntPtr, KeyValuePair<long, string>>();
+
+        private static void GetTextSafe(IntPtr h, StringBuilder sb, int cap)
+        {
+            try
+            {
+                if (Native.IsHungAppWindow(h))
+                {
+                    return;
+                }
+
+                int bytes = cap * 2;
+                IntPtr buf = System.Runtime.InteropServices.Marshal.AllocHGlobal(bytes);
+                try
+                {
+                    // 清零（后面按 UTF-16 读回来）
+                    for (int i = 0; i < bytes; i++)
+                    {
+                        System.Runtime.InteropServices.Marshal.WriteByte(buf, i, 0);
+                    }
+
+                    IntPtr smOk = Native.SendMessageTimeoutW(
+                        h, WM_GETTEXT, new IntPtr(cap), buf,
+                        Native.SMTO_ABORTIFHUNG, 10, out _);   // ★ 80→10ms（窗口一多会被拖死）
+                    if (smOk == IntPtr.Zero)
+                    {
+                        return;   // ★ 超时 → 当作没有标题（绝不阻塞）✓
+                    }
+
+                    string s = System.Runtime.InteropServices.Marshal
+                        .PtrToStringUni(buf) ?? string.Empty;
+                    sb.Clear();
+                    sb.Append(s);
+                    if (_titleCache.Count < 4096) { _titleCache[h] = new KeyValuePair<long, string>(Environment.TickCount64, s); }
+                }
+                finally
+                {
+                    System.Runtime.InteropServices.Marshal.FreeHGlobal(buf);
+                }
+            }
+            catch
+            {
+                // 取标题失败不影响其它判断 ✓
+            }
+        }
+
+        /// <summary>★ WM_GETTEXT（防卡死取标题用）</summary>
+        private const uint WM_GETTEXT = 0x000D;
 
         private static int ChildCountOf(IntPtr h)
         {

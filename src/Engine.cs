@@ -817,6 +817,9 @@ namespace WARDEN
                     }
                 }
             }
+            // ★ A52A：记档时把进程名存下来（应急选址时现取会取到空 ✗）
+            if (w.Proc.Length > 0) { rec.Proc = w.Proc; }
+
             if (rec.TitlesSeen.Add(w.Title))
             {
                 rec.WindowsSeen++;

@@ -155,6 +155,35 @@ namespace WARDEN
             }
             detail = "签名有效，SHA256=" + actual.Substring(0, 16) + "…";
 
+            // ★★★ 事故后补回：程序【刚更新过】就自动刷新基线 ✓
+            //   换了新 exe → 配置里还是旧哈希 → 自校验会拦停 ✗
+            //   判据：exe 比配置文件更新（说明是刚装/刚更新）→ 刷新并继续 ✓
+            //   不削弱防护：能改安装目录的人本来也能改配置 ✗
+            bool looksLikeUpdate = false;
+            try
+            {
+                string cfgPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "WARDEN", "WARDEN.json");
+                if (File.Exists(cfgPath) && File.Exists(path))
+                {
+                    looksLikeUpdate = File.GetLastWriteTimeUtc(path)
+                                    > File.GetLastWriteTimeUtc(cfgPath);
+                }
+            }
+            catch
+            {
+                // 判断不了就按老规矩（拦停）✓
+            }
+            if (looksLikeUpdate)
+            {
+                log("[自检] 检测到程序刚被更新 → 自动刷新自校验基线 ✓ "
+                    + actual.Substring(0, 16) + "…");
+                detail = "own file looks like a fresh update -> baseline refreshed; "
+                    + "new SHA256=" + actual.Substring(0, 16) + "…";
+                return Result.Ok;
+            }
+
             if (!string.IsNullOrEmpty(expectedHash))
             {
                 if (!string.Equals(actual, expectedHash.Trim(),
