@@ -309,7 +309,7 @@ namespace WardenSettings
         private void BuildRulesTab()
         {
             Panel b;
-            NewTab("规则", out b);
+            NewTab(WardenLang.Lang.T("set.tab.rules"), out b);
 
             _lvRules = new ListView
             {
@@ -323,10 +323,10 @@ namespace WardenSettings
             };
             // ★ 带复选框的 ListView：第一列就是复选框列 ✗
             //   所以列标题写"启用"，数据行的第一列留空 ✓
-            _lvRules.Columns.Add("启用", 52);
-            _lvRules.Columns.Add("名称", 185);
-            _lvRules.Columns.Add("进程", 135);
-            _lvRules.Columns.Add("标题关键词", 400);
+            _lvRules.Columns.Add(WardenLang.Lang.Tr("启用"), 52);
+            _lvRules.Columns.Add(WardenLang.Lang.Tr("名称"), 185);
+            _lvRules.Columns.Add(WardenLang.Lang.Tr("进程"), 135);
+            _lvRules.Columns.Add(WardenLang.Lang.Tr("标题关键词"), 400);
             b.Controls.Add(_lvRules);
 
             var btnAdd = new Button { Text = WardenLang.Lang.Tr("新增规则"), Location = new Point(0, 440), Size = new Size(105, 30) };
@@ -377,7 +377,7 @@ namespace WardenSettings
         {
             if (_lvRules.SelectedItems.Count == 0)
             {
-                MessageBox.Show("先选中一条规则。", "WARDEN 设置");
+                MessageBox.Show(WardenLang.Lang.Tr("先选中一条规则。"), "WARDEN 设置");
                 return;
             }
             var it = _lvRules.SelectedItems[0];
@@ -401,7 +401,7 @@ namespace WardenSettings
         private void BuildProtectTab()
         {
             Panel b;
-            NewTab("保护", out b);
+            NewTab(WardenLang.Lang.T("set.tab.protect"), out b);
             int y = 10;
             _ckFg = Chk("当前活动窗口不处理（skip_if_foreground）", 10, y, true); b.Controls.Add(_ckFg); y += 34;
             _ckEdit = Chk("含输入框的窗口不处理（skip_if_has_edit）", 10, y, true); b.Controls.Add(_ckEdit); y += 34;
@@ -418,7 +418,7 @@ namespace WardenSettings
         private void BuildActionTab()
         {
             Panel b;
-            NewTab("处置", out b);
+            NewTab(WardenLang.Lang.T("set.tab.action"), out b);
             int y = 10;
             _ckTerm = Chk("允许使用强制手段（allow_terminate）", 10, y, false); b.Controls.Add(_ckTerm); y += 42;
 
@@ -454,7 +454,7 @@ namespace WardenSettings
         private void BuildListsTab()
         {
             Panel b;
-            NewTab("名单", out b);
+            NewTab(WardenLang.Lang.T("set.tab.lists"), out b);
 
             b.Controls.Add(Lbl("白名单（这些进程永不处理，一行一个）", 8, 8, 380));
             _txtWl = new TextBox
@@ -502,7 +502,7 @@ namespace WardenSettings
         private void BuildSecurityTab()
         {
             Panel b;
-            NewTab("安全", out b);
+            NewTab(WardenLang.Lang.T("set.tab.safety"), out b);
             int y = 10;
             var ckSelf = Chk("启动时自校验（防止程序被调包）", 10, y, true); b.Controls.Add(ckSelf);
             _ckSelfRef = ckSelf; y += 34;
@@ -551,7 +551,7 @@ namespace WardenSettings
         private void BuildLogTab()
         {
             Panel b;
-            NewTab("日志", out b);
+            NewTab(WardenLang.Lang.T("set.tab.log"), out b);
 
             var btnRefresh = new Button { Text = WardenLang.Lang.Tr("刷新日志"), Location = new Point(0, 0), Size = new Size(100, 28) };
             btnRefresh.Click += (s, e) => RefreshLog();
@@ -990,11 +990,11 @@ namespace WardenSettings
                     {
                         if (sc.Contains("结果=通过"))
                         {
-                            _lblStatus.Text += "    自校验：✓ 通过";
+                            _lblStatus.Text += "    " + WardenLang.Lang.Tr("自校验：✓ 通过");
                         }
                         else
                         {
-                            _lblStatus.Text += "    自校验：★ 未通过";
+                            _lblStatus.Text += "    " + WardenLang.Lang.Tr("自校验：★ 未通过");
                             _lblStatus.ForeColor = Color.Red;
                         }
                     }
@@ -1090,7 +1090,7 @@ namespace WardenSettings
             {
                 if (string.IsNullOrWhiteSpace(_t2.Text) && string.IsNullOrWhiteSpace(_t3.Text))
                 {
-                    MessageBox.Show("进程名和标题关键词至少要填一个。", "WARDEN 设置");
+                    MessageBox.Show(WardenLang.Lang.Tr("进程名和标题关键词至少要填一个。"), "WARDEN 设置");
                     DialogResult = DialogResult.None;
                 }
             };
