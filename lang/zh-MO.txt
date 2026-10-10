@@ -355,7 +355,7 @@ WARDEN 设置=WARDEN 設置
 ，跳过 =, skipped 
  条（缺少名称或匹配条件）= (missing a name or match criteria)
 记得点「保存配置」才会生效 ✓=Remember to click "Save settings" to apply ✓
-★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。=★ 勾選 = 啓用該規則。"進程"和"標題關鍵詞"至少要填一個。
+★ 勾选即启用该规则。"进程"和"标题关键词"至少要填一个。= 啓用該規則。"進程"和"標題關鍵詞"至少要填一個。
 打开设置界面=Open settings
 暂停守护=Pause protection
 继续守护=Resume protection

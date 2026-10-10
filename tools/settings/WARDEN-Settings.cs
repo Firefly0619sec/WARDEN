@@ -366,7 +366,7 @@ namespace WardenSettings
             btnImport.Click += (s, e) => ImportRules();
             b.Controls.Add(btnImport);
 
-            b.Controls.Add(Lbl(WardenLang.Lang.Tr("★ 勾选 = 启用该规则。\"进程\"和\"标题关键词\"至少要填一个。"),
+            b.Controls.Add(Lbl(WardenLang.Lang.Tr("★ 勾选即启用该规则。\"进程\"和\"标题关键词\"至少要填一个。"),
                                10, 480, 700));   // ★ 挪到按钮下面一行（原来被挡住 ✗）
         }
 
