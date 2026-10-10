@@ -234,6 +234,12 @@ namespace WARDEN
 
         /// <summary>★ 硬黑名单：无论怎么配都不允许强杀。写死在代码里。</summary>
         [JsonPropertyName("_硬黑名单说明")]
+        /// <summary>
+        /// ★ 界面语言（语言包代码，如 zh-Hans / en-GB / zh-TW）✓
+        ///   空 = 跟随系统（用户在设置里选过才写进来 ✓）
+        /// </summary>
+        public string? Lang { get; set; }
+
         public string? HardBlockNote { get; set; }
     }
 

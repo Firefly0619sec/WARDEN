@@ -1,0 +1,274 @@
+# ============================================================================
+#  WARDEN 语言包 —— 简体中文
+# ============================================================================
+#  【怎么用】
+#    这个文件是纯文本，用记事本就能改。
+#    想加一门语言：复制一份改成 en.txt 放进
+#      %LOCALAPPDATA%\WARDEN\lang\
+#    程序会自动认出来，不用重新编译。
+#
+#  【格式】
+#    [meta]      语言信息       key=value
+#    [ui]        界面文字       key=value
+#    [log.tag]   日志前缀名     key=value
+#    [log.rule]  日志整行翻译   正则<TAB>译文
+#               译文里 {1} {2} 引用正则的捕获组
+#               规则按顺序匹配，第一条命中的生效
+#    以 # 开头是注释
+#
+#  【★ 请勿改 key，只改等号/制表符右边的内容】
+# ============================================================================
+
+[meta]
+code=en-GB
+name=English (UK)
+
+[ui]
+app.title=WARDEN
+app.subtitle=Popup and window behaviour blocker
+common.ok=OK
+common.cancel=Cancel
+common.close=Close
+common.yes=Yes
+common.no=No
+common.refresh=Refresh
+common.browse=Browse...
+common.back=Back
+common.next=Next
+common.finish=Finish
+common.install=Install
+common.retry=Retry
+log.title=WARDEN Log Analysis
+log.summary.empty=No analysable events in the log.
+log.filter.label=Show:
+log.filter.all=All events
+log.filter.important=★ Important events only
+log.filter.kill=force-kill
+log.filter.denied=force-kill denied
+log.filter.hide=Hidden / dismissed
+log.filter.consent=Consent popup
+log.filter.guard=Respawn / guardian
+log.filter.config=Self-check / config
+log.filter.error=Error
+log.onlyImportant=Show important lines only
+log.col.time=Time
+log.col.tag=Type
+log.col.what=What happened
+log.btn.openFolder=Open log folder
+log.btn.copy=Copy diagnostics
+log.tip.copy=★ When reporting a problem, just paste the diagnostics to the developer
+log.noLog=★ No log file yet. WARDEN writes one after it has run once.
+log.untagged=(startup message)
+log.untranslated=(no translation for this line yet — feel free to add one)
+log.analyzing=Analysing…
+log.diag.copied=Diagnostics copied to clipboard.
+set.title=WARDEN Settings
+set.tab.rules=Rules
+set.tab.protect=Protection
+set.tab.action=Actions
+set.tab.lists=Lists
+set.tab.safety=Safety
+set.tab.log=Log
+set.save=Save settings
+set.reload=Reload
+set.status.running=Status: ✓ running (PID {0})
+set.status.stopped=Status: · not running
+set.status.hint=★ To start: double-click WARDEN on the desktop. To stop or pause: right-click the tray icon
+set.lang.label=Language:
+tray.openSettings=Open settings
+tray.pause=Pause protection
+tray.resume=Resume protection
+tray.reload=Reload settings
+tray.viewLog=View logs
+tray.checkUpdate=Check for updates
+tray.uninstall=Uninstall WARDEN
+tray.exit=Quit
+upd.title=WARDEN — Check for updates
+upd.current=Current version {0}
+upd.privacy=★ This program collects nothing over the network. It contacts GitHub once, and only when you click "Check for updates".
+upd.check=Check for updates
+upd.download=Download and install
+upd.openPage=Open releases page
+upd.notChecked=Not checked yet.
+upd.checking=Contacting GitHub…
+upd.upToDate=You are on the latest version ✓
+upd.newer=New version available: {0} (current {1})
+upd.dev=Your build is newer than the published release (a dev build?)
+upd.failed=Check failed: the network is unreachable, or nothing has been released yet
+upd.downloading=Downloading… {0}%  ({1} / {2} MB)
+upd.done=Download complete, ready to install
+upd.dlFailed=Download failed
+un.title=Uninstall WARDEN
+un.heading=About to uninstall WARDEN
+un.start=Uninstall
+un.keepNote=Keep settings and logs (I want to keep the record)
+un.done=Uninstall complete
+un.certNote=★ One thing was not removed: the code-signing certificate
+setup.title=WARDEN Setup
+setup.welcome=Welcome to WARDEN
+setup.agree=I have read and accept the licence above
+setup.where=Choose install location
+setup.components=Choose components
+setup.installing=Installing
+setup.installed=Installation complete
+setup.dirOk=✓ This location is usable
+setup.locked=★ The following components are required (cannot be deselected)
+setup.optional=Optional:
+setup.desktop=Create a desktop shortcut
+setup.autostart=Start WARDEN automatically at sign-in (recommended: turn on once you are used to it)
+setup.openSettings=Open settings now
+setup.startWarden=Start WARDEN now (begin protection)
+submit.title=Send feedback in one click
+submit.explain=No GitHub account needed — fill it in and submit.
+
+[log.tag]
+SCORE=score
+DECISION=decision
+L1-CLOSE=polite close
+L2-HIDE=hide
+L2-DISMISS=dismiss
+L3-KILL=force-kill
+KILL-DENIED=force-kill denied
+KILL-ESCALATED=manual elevation
+KILL-FAIL=force-kill failed
+GUARD=guardian detected
+CONSENT-OK=consent granted
+CONSENT-KEEP=keep hiding
+CONSENT-SKIP=consent skipped
+STAGE2=stage-2 criteria
+DRYRUN=drill mode
+CLEARED=resolved
+RECORD=record
+TRAY=tray
+MSGWND=message window
+MIGRATE=data migration
+STATUS=status
+CONFIG=config check
+SELFCHECK=self-check
+ERROR=(startup message)
+
+[log.rule]
+# 顺序很重要：越具体的规则要放越前面
+# 译文里的 {1} {2} 是对应正则括号捕获到的内容
+^config changed.*$	配置内容变了 → 重新校验一遍
+^validation done:\s*(\d+)\s*error\(s\),\s*(\d+)\s*warning\(s\)$	校验完成：{1} 个错误、{2} 个警告
+^validation done:\s*(.*)$	校验完成：{1}
+^\[CONFIG\]\s*\[WARN\]\s*(.*?)\s*->\s*(.*)$	★ 配置警告：{1}
+　　建议：{2}
+^\[CONFIG\]\s*\[ERROR\]\s*(.*?)\s*->\s*(.*)$	★★ 配置错误：{1}
+　　建议：{2}
+^\[CONFIG\]\s*(.*)$	配置校验：{1}
+^default config created:\s*(.*)$	第一次运行，已生成默认配置：{1}
+^loaded config from\s*(.*)$	已读取配置：{1}
+^started pid=(\d+).*$	WARDEN 启动（进程号 {1}）
+^started\s*(.*)$	WARDEN 启动 {1}
+^exit\s*(.*)$	WARDEN 退出 {1}
+^stop file.*$	收到停止信号 → 退出
+^winevent hooks.*$	已挂钩窗口事件监听：{0}
+^hard-block=(.*)$	安全闸（硬黑名单）：{1}
+^sandbox=(.*)$	运行模式：{1}
+^sig-gate=(.*)$	签名闸：{1}
+^consent=(.*)$	弹窗询问设置：{1}
+^dry-run=(.*)$	处置设置：{1}
+^\[SCORE\]\s*(.*)$	评估行为分：{1} → 达到门槛，准备处置
+^\[DECISION\]\s*(.*)$	决策依据：{1}
+^\[L1-CLOSE\]\s*(.*)$	① 礼貌请求关闭：{1}
+^\[L2-HIDE\]\s*(.*)$	② 隐藏窗口并请求关闭：{1}
+　　（受保护的进程只用温和手段）
+^\[L2-DISMISS\]\s*(.*)$	② 劝退（先隐藏再请求关闭）：{1}
+^\[L3-KILL\]\s*(.*)$	③ 强制结束进程：{1}
+^\[KILL-ESCALATED\]\s*(.*)$	★★ 手动提权生效 —— 你当场同意了，所以这次动手了：{1}
+^\[KILL-DENIED\]\s*(.*)$	★ 没有动手：{1}
+　　（安全闸把它拦住了，这是保护机制在起作用）
+^\[KILL-FAIL\]\s*(.*)$	★ 强制结束失败：{1}
+^\[GUARD\]\s*(.*)$	★★ 发现"杀了又回来"：{1}
+　　建议用 Geek Uninstaller 之类的专业工具彻底卸载它
+^\[CONSENT-OK\]\s*(.*)$	★ 你授权了强制手段：{1}
+^\[CONSENT-KEEP\]\s*(.*)$	★ 你选择继续隐藏：{1}
+^\[CONSENT-SKIP\]\s*(.*)$	跳过询问：{1}
+^\[STAGE2\]\s*(.*)$	第二段判据（确认压不住）：{1}
+^\[DRYRUN\]\s*(.*)$	【演习模式】本来应该执行：{1}
+　　（演习模式只记日志、不动手）
+^\[CLEARED\]\s*(.*)$	✓ 窗口自己关掉了，问题解决：{1}
+^\[RECORD\]\s*(.*)$	行为记录：{1}
+^\[TRAY\]\s*(.*)$	托盘操作：{1}
+^\[MSGWND\]\s*(.*)$	消息窗口：{1}
+^\[MIGRATE\]\s*(.*)$	旧版数据迁移：{1}
+^\[STATUS\]\s*(.*)$	状态变化：{1}
+^\[SELFCHECK\]\s*(.*)$	启动自校验：{1}
+^\[ERROR\]\s*(.*)$	★ 出错了：{1}
+
+# ── 帮助中心（教程页）──────────────────────────────────────────
+help.title=WARDEN Tutorial
+help.heading=WARDEN Tutorial
+help.subheading=Pick a section on the left. Three sections and you are up to speed.
+help.btn.feedback=Report a problem
+help.btn.openPage=Open releases page
+help.btn.settings=Open settings
+help.openFailed=打不开浏览器：
+help.siblingMissing=找不到 {0}。\n\n这说明安装不完整（正常安装时它是必装的）。\n请重新运行 WARDEN 安装包修复。
+
+help.sec.quick.title=1. Up and running in three minutes
+help.sec.quick.body=WARDEN 装好之后，它在后台默默看着窗口，你不用管它。\n\n要看它在不在：看右下角托盘区（时钟旁边）有没有一个号角手图标。\n\n第一次启动时它会问你一个问题：\n要不要先开「演习模式」？\n  · 演习模式 = 只记日志、不动手，适合先观察几天\n  · 不开 = 立刻开始拦窗口\n\n装完就能用，不需要注册、不需要联网。
+
+help.sec.tray.title=2. Using the tray icon
+help.sec.tray.body=在右下角托盘图标上【点右键】，会出现这些：\n\n  打开设置界面      改规则、改门槛\n  暂停守护 / 继续守护  临时让它歇一会儿（开了之后就是"继续守护"）\n  重新加载配置      改完配置文件后点这个，不用重启\n  查看日志          看它到底做了什么（全中文）\n  检查更新          去 GitHub 看有没有新版本\n  卸载 WARDEN       不想要了\n  退出              彻底关掉\n\n★ 双击托盘图标 = 直接打开设置界面（最快）。
+
+help.sec.blocked.title=3. Blocked too much / not enough
+help.sec.blocked.body=【它太激进，拦了我正在用的东西】\n  打开设置界面 → 「保护」标签页\n  确认三个"防误伤"开关都是开着的（默认就是开的）\n  还是不行 → 「名单」标签页，把那个程序加进白名单\n\n【弹窗还是照样冒出来】\n  ① 打开「日志分析」看看它在做什么\n  ② 如果日志里写着【演习模式】，说明它只在观察没动手\n     去设置界面关掉演习模式即可\n  ③ 如果写着「拒绝强杀」，说明安全闸拦住了\n     这是保护机制，不是坏了\n\n【有个程序杀了又回来】\n  日志里会出现「守护检测」\n  说明那个程序自己带守护进程，WARDEN 杀它它会自己重启\n  这种情况建议用 Geek Uninstaller 之类的工具彻底卸载它。
+
+help.sec.dryrun.title=4. What is drill mode
+help.sec.dryrun.body=演习模式 = 只记日志，不动手。\n\n什么时候用：\n  · 刚装上，想先看看它会拦哪些窗口，担心误伤\n  · 出了问题想留证据给开发者看\n\n怎么开关：设置界面 → 「保护」标签页 → 演习模式\n\n★ 关掉它才会真的拦窗口。第一次启动时会问你一次。\n★ 开着的时候日志会写 [DRYRUN]，日志分析里会显示"本该执行……"。
+
+help.sec.rules.title=5. Adding your own rules
+help.sec.rules.body=设置界面 → 「规则」标签页 → 「新增规则」\n\n一条规则需要：\n  名称       随便起，写清楚是哪个软件，方便以后认\n  进程名     比如 qq.exe（只写文件名，不要写完整路径）\n  标题关键词  标题里包含这些词就命中，如 活动、福利、推荐\n  或 标题正则  更灵活，但要小心别写太宽泛导致误伤\n\n★ 规则只是"起点"，是否动手还要看综合行为分\n  （短时间内疯狂新建窗口、反复抢前台、被关又回来……）\n  所以规则写宽一点也不会乱杀 ✓
+
+help.sec.safety.title=6. Safety notes (important)
+help.sec.safety.body=★ WARDEN 本体【完全不联网】。\n  只有你点「检查更新」时，更新器才会访问 GitHub 一次。\n\n★ 安全与保护开关【默认全开】：\n  签名闸 / 白名单禁杀 / 启动自校验 / 自身被改动就拉停\n  三个防误伤开关（前台窗口不碰、含输入框不碰、含子控件不碰）\n\n★ 有合法数字签名的程序：默认不硬杀，最多隐藏或请求关闭\n\n★ 强制手段默认【不预先授权】：\n  遇到压不住的窗口它会问你要不要动手，你当场同意才动一次\n  这叫"手动提权"，你始终握有决定权\n\n★ 更新包会校验 SHA256 和数字签名，任何一项不对都会拒绝安装
+
+help.sec.update.title=7. Updating
+help.sec.update.body=托盘图标右键 → 「检查更新」\n\n两条通道：\n  正式版    稳定，推荐\n  Beta 版   尝鲜，可能有 bug（想帮忙测试就选这个）\n\n★ 连不上 GitHub 怎么办：\n  程序不会卡死，会告诉你怎么回事，并给出替代方案\n  （打开发布页用浏览器下载 / 检查代理 / 换个时间再试）\n\n★ 从别处拿到安装包时，务必右键 → 属性 → 数字签名，\n  确认签名者是 Firefly0619sec 再运行
+
+help.sec.uninstall.title=8. Uninstalling
+help.sec.uninstall.body=三种方式，任选一种：\n\n  ① 控制面板 → 程序和功能 → WARDEN → 卸载\n  ② 开始菜单 → WARDEN 文件夹 → 卸载\n  ③ 托盘图标右键 → 卸载 WARDEN\n\n卸载时：\n  · 可以勾选"保留配置与日志"\n  · 程序目录会在卸载窗口关闭后才消失（正常现象）\n  · 最后会告诉你"数字签名证书没有删"，以及怎么手动删
+
+help.sec.faq.title=9. FAQ
+help.sec.faq.body=【托盘图标不见了】\n  可能被折叠了：点托盘区的向上箭头 ^ 找找\n  或者 WARDEN 已经退出了：看任务管理器有没有 WARDEN.exe\n\n【设置界面打不开】\n  从托盘图标右键 → 打开设置界面\n  还不行就重新运行安装包（会修复缺失的组件）\n\n【改了配置文件没生效】\n  托盘右键 → 重新加载配置\n\n【杀毒软件报警】\n  WARDEN 会读窗口信息、结束进程，行为上和恶意软件有相似处\n  这是误报。可以把这个目录加进杀软白名单：\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【还是解决不了】\n  点下面的「反馈问题」，填完直接提交到 GitHub\n  没有 GitHub 账号也能用：一键复制，发给分发者帮你转交
+
+# ── 帮助中心（反馈页）──────────────────────────────────────────
+fb.title=Report a problem
+fb.heading=Report a problem / suggest an idea
+fb.kind=Type:
+fb.kind.bug=Bug (something is broken)
+fb.kind.idea=Idea (a new feature)
+fb.kind.other=Other
+fb.subject=Subject:
+fb.detail=Details:
+fb.detailHint=The more specific the better: what you did, what you expected, what happened
+fb.contact=Contact:
+fb.contactHint=(optional) leave one if you want a reply
+fb.attachDiag=Attach diagnostics (version, OS, settings summary, log summary)
+fb.diagHint=★ 诊断信息会把你路径里的用户名打码。\n★ 你点提交之前，这些内容哪里也不去。
+fb.preview=Preview
+fb.btn.github=Submit on GitHub
+fb.btn.copy=Copy
+fb.btn.save=Save to file
+fb.defaultTitle=(briefly describe the problem)
+fb.tooLong=Too long for a GitHub link.
+fb.tooLongAsk=已经把完整内容复制到剪贴板了。\n\n点「是」打开 GitHub 新建 issue 页面，\n然后按 Ctrl+V 把内容粘进去。\n\n点「否」先不发。
+fb.copiedForPaste=已复制到剪贴板 —— 到 GitHub 页面后按 Ctrl+V 粘贴
+fb.openedInBrowser=已在浏览器打开，提交前请再确认一遍内容
+fb.copied=Copied to clipboard
+fb.copiedLong=内容已复制到剪贴板。\n\n你可以把它发给分发者或群里，\n让有 GitHub 账号的人帮你代发。\n\n★ 开通 GitHub 账号只要一分钟，\n  而且以后能直接收更新通知。
+fb.saved=已保存到：{0}
+fb.noAccountHint=★ 没有 GitHub 账号？点「复制内容」，发给分发者帮你转交就行。
+fb.r.kind=Type
+fb.r.contact=联系方式
+fb.r.detail=详细描述
+fb.r.diag=诊断信息
+
+# ── 诊断信息小节标题 ─────────────────────────────────────────
+diag.env=Environment
+diag.files=Components
+diag.config=Settings summary
+diag.log=Log summary

@@ -21,7 +21,7 @@
 
 [meta]
 code=zh-MO
-name=繁體中文（澳門）
+name=繁體中文（中國澳門）
 
 [ui]
 app.title=WARDEN

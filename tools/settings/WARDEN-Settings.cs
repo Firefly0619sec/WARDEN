@@ -86,6 +86,7 @@ namespace WardenSettings
         private TextBox _txtWl, _txtConsent, _txtTermHist, _txtHash, _txtHard, _txtLog;
         private NumericUpDown _numLines;
         private Label _lblStatus;
+        private ComboBox _cbLang = new ComboBox();   // ★ 语言切换 ✓
         private Timer _timer;
 
         /// <summary>
@@ -154,6 +155,55 @@ namespace WardenSettings
             var btnStop = new Button { Text = "停止 WARDEN", Location = new Point(363, 12), Size = new Size(115, 32) };
             btnStop.Click += (s, e) => StopWarden();
             bottom.Controls.Add(btnStop);
+
+            // ★★★ 语言切换（用户 2026-10-10 要求）
+            //   列出 lang\ 里所有语言包；选完写进配置，下次启动生效 ✓
+            var lblLang = new Label
+            {
+                Text = WardenLang.Lang.T("set.lang.label"),
+                Bounds = new Rectangle(12, 12, 80, 20),
+            };
+            _cbLang = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Bounds = new Rectangle(96, 10, 130, 22),
+            };
+            foreach (string code in WardenLang.Lang.Available())
+            {
+                _cbLang.Items.Add(code);
+            }
+            if (_cbLang.Items.Count > 0)
+            {
+                int idx = _cbLang.Items.IndexOf(WardenLang.Lang.Code);
+                _cbLang.SelectedIndex = idx >= 0 ? idx : 0;
+            }
+            _cbLang.SelectedIndexChanged += (s2, e2) =>
+            {
+                string code = _cbLang.SelectedItem as string ?? "zh-Hans";
+                try
+                {
+                    WardenLang.Lang.Load(code);
+                    try
+                    {
+                        string lg = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                            "WARDEN", "setup.log");
+                        Directory.CreateDirectory(Path.GetDirectoryName(lg)!);
+                        File.AppendAllText(lg,
+                            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                            + "  [语言] 界面语言已切到 " + code
+                            + "（保存配置后生效 ✓）" + Environment.NewLine,
+                            new System.Text.UTF8Encoding(false));
+                    }
+                    catch { }
+                }
+                catch (Exception ex)
+                {
+                    /* 切换失败：语言包本身不合法，保持原语言 ✓ */
+                }
+            };
+            bottom.Controls.Add(lblLang);
+            bottom.Controls.Add(_cbLang);
 
             _lblStatus = new Label { Location = new Point(495, 18), Size = new Size(330, 24) };
             bottom.Controls.Add(_lblStatus);
@@ -733,6 +783,11 @@ namespace WardenSettings
                 sb.Append("  \"consented_processes\": ").Append(JArr(Split(_txtConsent.Text))).AppendLine(",");
                 sb.Append("  \"terminated_history\": ").Append(JArr(Split(_txtTermHist.Text))).AppendLine(",");
                 sb.Append("  \"expected_self_hash\": ").Append(J(_txtHash.Text.Trim())).AppendLine(",");
+                // ★ 语言选择（用户手选过就固化下来 ✓）
+                if (_cbLang != null && _cbLang.SelectedItem is string langCode)
+                {
+                    sb.Append("  \"lang\": ").Append(J(langCode)).AppendLine(",");
+                }
                 sb.Append("  \"self_check_on_start\": ").Append(_ckSelfRef.Checked ? "true" : "false").AppendLine(",");
                 sb.Append("  \"self_check_block_on_fail\": ").Append(_ckBlockRef.Checked ? "true" : "false");
                 sb.AppendLine();

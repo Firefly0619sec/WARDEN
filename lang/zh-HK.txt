@@ -21,7 +21,7 @@
 
 [meta]
 code=zh-HK
-name=繁體中文（香港）
+name=繁體中文（中國香港）
 
 [ui]
 app.title=WARDEN

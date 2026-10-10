@@ -101,8 +101,39 @@ namespace WardenLang
         }
 
         /// <summary>★ 决定用哪个语言：环境变量 → 系统界面语言 → 简体中文</summary>
-        public static string DetectCode()
+        
+        /// <summary>★ 配置里指定的语言（用户手选过就听他的 ✓）</summary>
+        private static string ReadConfiguredLang()
         {
+            try
+            {
+                string cfg = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "WARDEN", "WARDEN.json");
+                if (!File.Exists(cfg))
+                {
+                    return "";
+                }
+                string text = File.ReadAllText(cfg);
+                var mm = System.Text.RegularExpressions.Regex.Match(
+                    text, "\"lang\"\\s*:\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return mm.Success ? mm.Groups[1].Value.Trim() : "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+public static string DetectCode()
+        {
+            // ★★★ 用户手选的语言优先（设置界面里的"界面语言"下拉框 ✓）
+            string configured = ReadConfiguredLang();
+            if (configured.Length > 0 && Available().Contains(configured))
+            {
+                return configured;
+            }
+
             // ★ 五种语言（用户 2026-10-10 补充要求）：
             //    简中 / 英语 / 繁中（台灣·香港·澳門 各自一份 ✓ 用词不同 ✗）
             var avail = Available();
@@ -135,7 +166,9 @@ namespace WardenLang
             }
             else
             {
-                want = "en";        // 其它语言 → 英语 ✓（没有 en 包就退回简中 ✓）
+                want = ui.StartsWith("en-US", StringComparison.OrdinalIgnoreCase)
+                    ? "en-US"          // 美式英语 ✓
+                    : "en-GB";         // 其它英语 → 英式 ✓（用户要求先补英式）
             }
 
             if (avail.Contains(want))
