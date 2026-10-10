@@ -208,6 +208,12 @@ namespace WardenSetup
                         Directory.CreateDirectory(parent);
                     }
                     e.ExtractToFile(target, overwrite: true);
+                    // ★★★ 关键：把文件时间设为"现在" ✗
+                    //   解压出来的文件会带着【打包时】的时间戳，
+                    //   结果比用户机器上的 WARDEN.json 还旧 ✗
+                    //   → 主程序的"刚更新过就刷新自校验基线"判据不成立 ✗
+                    //   → WARDEN 拒绝启动（用户看到的现象是"装完打不开"✗✗）
+                    try { File.SetLastWriteTimeUtc(target, DateTime.UtcNow); } catch { }
                     n++;
                 }
                 L("释放文件 " + n + " 个 ✓");

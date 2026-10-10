@@ -23,20 +23,20 @@ $log = Join-Path $data 'WARDEN.log'
 
 function Sample([string]$label, [int]$sec) {
     Write-Host ('  · ' + $label + '（采样 ' + $sec + ' 秒）') -ForegroundColor DarkGray
-    $cpu = 0.0; $mem = 0L; $n = 0; $peak = 0.0
+    $first = -1.0; $mem = 0L; $n = 0; $peak = 0.0
     $end = (Get-Date).AddSeconds($sec)
     while ((Get-Date) -lt $end) {
         $p = Get-Process WARDEN -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($p) {
-            $cpu += $p.TotalProcessorTime.TotalMilliseconds
+            if ($first -lt 0) { $first = $p.TotalProcessorTime.TotalMilliseconds }
             $mem = [Math]::Max($mem, $p.WorkingSet64)
-            $peak = [Math]::Max($peak, $cpu)
+            $peak = [Math]::Max($peak, $p.TotalProcessorTime.TotalMilliseconds)
         }
         Start-Sleep -Milliseconds 500
         $n++
     }
     $p2 = Get-Process WARDEN -ErrorAction SilentlyContinue | Select-Object -First 1
-    $cpuMs = if ($p2) { $p2.TotalProcessorTime.TotalMilliseconds - $cpu } else { 0 }
+    $cpuMs = if ($p2 -and $first -ge 0) { $p2.TotalProcessorTime.TotalMilliseconds - $first } else { 0 }
     $cpuPct = if ($sec -gt 0) { [Math]::Round($cpuMs / ($sec * 1000) * 100 /
                               [Environment]::ProcessorCount, 1) } else { 0 }
     return [pscustomobject]@{

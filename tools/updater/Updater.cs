@@ -255,6 +255,8 @@ namespace WardenUpdater
                     string? parent = Path.GetDirectoryName(target);
                     if (!string.IsNullOrEmpty(parent)) { Directory.CreateDirectory(parent); }
                     e.ExtractToFile(target, overwrite: true);
+                    // ★ 同安装器：时间设为现在，否则主程序的自检自愈不触发 ✗
+                    try { File.SetLastWriteTimeUtc(target, DateTime.UtcNow); } catch { }
                     n++;
                 }
                 Log("已覆盖 " + n + " 个文件 ✓");
