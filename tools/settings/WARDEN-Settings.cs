@@ -135,6 +135,113 @@ namespace WardenSettings
 
             var btnSave = new Button { Text = "保存配置", Location = new Point(12, 12), Size = new Size(110, 32) };
             btnSave.Click += (s, e) => SaveConfig();
+
+            // ★★★ 「语言」单独一栏（用户 2026-10-10 要求）：
+            //   【为什么单独一栏】底部那条太窄，繁體中文（中國臺灣）(zh-TW)
+            //   这种长度会被截断 ✗ 用户明确说"后面的英语编号都被挡住了"
+            //   → 单独一页，下拉框做宽（420px），名称与代码都看得全 ✓
+            {
+                var langTab = new TabPage(WardenLang.Lang.T("set.tab.lang"))
+                {
+                    Padding = new Padding(16),
+                };
+                _tabs.TabPages.Add(langTab);
+
+                langTab.Controls.Add(new Label
+                {
+                    Text = WardenLang.Lang.T("set.lang.label"),
+                    Location = new Point(4, 12),
+                    Size = new Size(420, 22),
+                });
+
+                _cbLang = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Location = new Point(4, 40),
+                    Size = new Size(420, 26),
+                    Font = new Font("Microsoft YaHei UI", 10F),
+                };
+
+                // ★ 贝塔版带 BCP47 代码（给开发者报 issue 用 ✓），正式版只显示名字 ✓
+                bool showCode = System.Windows.Forms.Application.ProductVersion
+                    .IndexOf("beta", StringComparison.OrdinalIgnoreCase) >= 0;
+                foreach (string code in WardenLang.Lang.Available())
+                {
+                    _cbLang.Items.Add(showCode
+                        ? WardenLang.Lang.DisplayName(code) + "  (" + code + ")"
+                        : WardenLang.Lang.DisplayName(code));
+                }
+                if (_cbLang.Items.Count > 0)
+                {
+                    int idx = -1;
+                    for (int i2 = 0; i2 < _cbLang.Items.Count; i2++)
+                    {
+                        string it = _cbLang.Items[i2] as string ?? "";
+                        if (it == WardenLang.Lang.DisplayName(WardenLang.Lang.Code)
+                            || it.EndsWith("(" + WardenLang.Lang.Code + ")"))
+                        {
+                            idx = i2;
+                            break;
+                        }
+                    }
+                    _cbLang.SelectedIndex = idx >= 0 ? idx : 0;
+                }
+
+                _cbLang.SelectedIndexChanged += (s2, e2) =>
+                {
+                    string shown = _cbLang.SelectedItem as string ?? "简体中文";
+                    int lp = shown.LastIndexOf('(');
+                    string code;
+                    if (lp > 0)
+                    {
+                        code = shown.Substring(lp + 1).TrimEnd(')', ' ');
+                    }
+                    else
+                    {
+                        code = "zh-Hans";
+                        foreach (string c2 in WardenLang.Lang.Available())
+                        {
+                            if (WardenLang.Lang.DisplayName(c2) == shown)
+                            {
+                                code = c2;
+                                break;
+                            }
+                        }
+                    }
+                    try
+                    {
+                        WardenLang.Lang.Load(code);
+                        try
+                        {
+                            string lg = Path.Combine(
+                                Environment.GetFolderPath(
+                                    Environment.SpecialFolder.LocalApplicationData),
+                                "WARDEN", "setup.log");
+                            Directory.CreateDirectory(Path.GetDirectoryName(lg)!);
+                            File.AppendAllText(lg,
+                                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                + "  [语言] 界面语言已切到 " + code
+                                + "（保存配置后生效 ✓）" + Environment.NewLine,
+                                new System.Text.UTF8Encoding(false));
+                        }
+                        catch { }
+                    }
+                    catch
+                    {
+                        // 语言包不合法 → 保持原语言 ✓
+                    }
+                };
+
+                langTab.Controls.Add(_cbLang);
+
+                langTab.Controls.Add(new Label
+                {
+                    Text = WardenLang.Lang.T("set.lang.hint"),
+                    Location = new Point(4, 78),
+                    Size = new Size(760, 140),
+                });
+            }
+
             bottom.Controls.Add(btnSave);
 
             var btnReload = new Button { Text = "重新加载", Location = new Point(130, 12), Size = new Size(100, 32) };
@@ -148,83 +255,10 @@ namespace WardenSettings
             };
             bottom.Controls.Add(btnReload);
 
-            var btnStart = new Button { Text = "启动 WARDEN", Location = new Point(240, 12), Size = new Size(115, 32) };
-            btnStart.Click += (s, e) => StartWarden();
-            bottom.Controls.Add(btnStart);
 
-            var btnStop = new Button { Text = "停止 WARDEN", Location = new Point(363, 12), Size = new Size(115, 32) };
-            btnStop.Click += (s, e) => StopWarden();
-            bottom.Controls.Add(btnStop);
 
-            // ★★★ 语言切换（用户 2026-10-10 要求）
-            //   列出 lang\ 里所有语言包；选完写进配置，下次启动生效 ✓
-            var lblLang = new Label
-            {
-                Text = WardenLang.Lang.T("set.lang.label"),
-                Bounds = new Rectangle(600, 16, 80, 20),
-            };
-            _cbLang = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Bounds = new Rectangle(684, 14, 136, 22),
-            };
-            // ★★★ 语言列表（用户 2026-10-10 要求）：
-            //   正式版：只显示名字（«繁體中文（中國臺灣）» 一看就懂 ✓）
-            //   贝塔版：名字后面带 BCP47 代码 —— 给开发者/报 issue 用 ✓
-            bool showCode = System.Windows.Forms.Application.ProductVersion
-                .IndexOf("beta", StringComparison.OrdinalIgnoreCase) >= 0;
-            foreach (string code in WardenLang.Lang.Available())
-            {
-                _cbLang.Items.Add(showCode
-                    ? WardenLang.Lang.DisplayName(code) + "  (" + code + ")"
-                    : WardenLang.Lang.DisplayName(code));
-            }
-            if (_cbLang.Items.Count > 0)
-            {
-                int idx = -1;
-                    for (int i2 = 0; i2 < _cbLang.Items.Count; i2++)
-                    {
-                        string it = _cbLang.Items[i2] as string ?? "";
-                        if (it == WardenLang.Lang.DisplayName(WardenLang.Lang.Code)
-                            || it.EndsWith("(" + WardenLang.Lang.Code + ")"))
-                        {
-                            idx = i2;
-                            break;
-                        }
-                    }
-                _cbLang.SelectedIndex = idx >= 0 ? idx : 0;
-            }
-            _cbLang.SelectedIndexChanged += (s2, e2) =>
-            {
-                string shown = _cbLang.SelectedItem as string ?? "简体中文  (zh-Hans)";
-                    int lp = shown.LastIndexOf('(');
-                    string code = lp > 0
-                        ? shown.Substring(lp + 1).TrimEnd(')', ' ')
-                        : "zh-Hans";
-                try
-                {
-                    WardenLang.Lang.Load(code);
-                    try
-                    {
-                        string lg = Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                            "WARDEN", "setup.log");
-                        Directory.CreateDirectory(Path.GetDirectoryName(lg)!);
-                        File.AppendAllText(lg,
-                            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                            + "  [语言] 界面语言已切到 " + code
-                            + "（保存配置后生效 ✓）" + Environment.NewLine,
-                            new System.Text.UTF8Encoding(false));
-                    }
-                    catch { }
-                }
-                catch (Exception ex)
-                {
-                    /* 切换失败：语言包本身不合法，保持原语言 ✓ */
-                }
-            };
-            bottom.Controls.Add(lblLang);
-            bottom.Controls.Add(_cbLang);
+
+
 
             _lblStatus = new Label { Location = new Point(495, 18), Size = new Size(330, 24) };
             bottom.Controls.Add(_lblStatus);
