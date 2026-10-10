@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ==========================================================================
+       warden-cli（B4，2026-10-10）
+       · 原生 AOT + 纯控制台（不依赖 .NET 运行时 ✓，体积小）
+       · 复用 tools/setup/StopToken.cs（写合法停止令牌）✓
+       ========================================================================== -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>warden-cli</AssemblyName>
+    <RootNamespace>WardenCli</RootNamespace>
+    <AssemblyTitle>WARDEN 命令行工具</AssemblyTitle>
+    <Product>WARDEN</Product>
+    <Version>0.1.0-beta.1</Version>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\setup\StopToken.cs">
+      <Link>StopToken.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+</Project>

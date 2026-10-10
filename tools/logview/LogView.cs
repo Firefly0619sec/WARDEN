@@ -28,8 +28,24 @@ namespace WardenLogView
 {
     internal sealed class LogViewForm : Form
     {
-        private static readonly string DataDir = Path.Combine(
+        // ★ B3 便携版：exe 同目录有 WARDEN.portable 就用 <exe目录>\data ✓
+        private static readonly string DataDir = ResolveDataDir();
+
+        private static string ResolveDataDir()
+        {
+            try
+            {
+                string exeDir = AppContext.BaseDirectory.TrimEnd('\\');
+                if (File.Exists(Path.Combine(exeDir, "WARDEN.portable")))
+                {
+                    return Path.Combine(exeDir, "data");
+                }
+            }
+            catch { }
+            return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN");
+        }
+
 
         /// <summary>★ 关键行的判据（用户最需要一眼看到的那些）✓</summary>
         private static readonly string[] KeyWords =

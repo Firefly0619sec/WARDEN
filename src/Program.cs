@@ -34,8 +34,9 @@ namespace WARDEN
     {
         private const int SweepIntervalMs = 100;
 
+        // ★ B3 便携版：有 WARDEN.portable 标记就用 <exe目录>\data ✓
         private static readonly string ToolDir =
-            (Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? ".") + @"\WARDEN";
+            WardenPaths.ResolveDataDir((Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? ".") + @"\WARDEN");
         private static readonly string ConfigPath = ToolDir + @"\WARDEN.json";
         private static readonly string LogPath = ToolDir + @"\WARDEN.log";
         private static readonly string StopPath = ToolDir + @"\WARDEN.stop";
@@ -390,6 +391,49 @@ namespace WARDEN
                         + "（停在：" + _stageTag + "）—— 疑似被某个调用卡住 ✗");
                     System.Threading.Interlocked.Exchange(ref _stageTick, Environment.TickCount64);
                 }
+            }
+        }
+
+        // ★★★ B11 本地崩溃收集（不联网、不上传 ✓）
+        //   守护进程崩了却什么都不留是最糟的 ✗
+        //   这里把异常 + 环境 + 日志尾部写成一个 CRASH-<时间>.log ✓
+        public static void WriteCrashReport(string where, Exception ex)
+        {
+            try
+            {
+                string path = Path.Combine(ToolDir,
+                    "CRASH-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".log");
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("WARDEN 崩溃报告（本地生成，未上传任何东西 ✓）");
+                sb.AppendLine("时间     : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                sb.AppendLine("位置     : " + where);
+                sb.AppendLine("版本     : " + Version);
+                sb.AppendLine("系统     : " + Environment.OSVersion.VersionString);
+                sb.AppendLine("CLR      : " + Environment.Version);
+                sb.AppendLine("64 位    : " + Environment.Is64BitProcess);
+                sb.AppendLine("程序路径 : " + Environment.ProcessPath);
+                sb.AppendLine();
+                sb.AppendLine("---- 异常 ----");
+                sb.AppendLine(ex.ToString());
+                sb.AppendLine();
+                sb.AppendLine("---- 日志尾部（最近 80 行）----");
+                try
+                {
+                    string log = Path.Combine(ToolDir, "WARDEN.log");
+                    if (File.Exists(log))
+                    {
+                        string[] all = File.ReadAllLines(log);
+                        int from = Math.Max(0, all.Length - 80);
+                        for (int i = from; i < all.Length; i++) { sb.AppendLine(all[i]); }
+                    }
+                }
+                catch { }
+                File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+                Log("★ 已写出崩溃报告: " + path);
+            }
+            catch
+            {
+                // 连崩溃报告都写不出来 → 只能认了（绝不因此再抛）✗
             }
         }
 
@@ -943,6 +987,15 @@ namespace WARDEN
                 Log("[应急] mode=" + (cfg.Emergency == null || cfg.Emergency.Enabled
                     ? "armed" : "off"));
 
+                // ★ B11：全局兜底 —— 未处理异常一律写成崩溃报告 ✓
+                AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                {
+                    if (e.ExceptionObject is Exception uex)
+                    {
+                        WriteCrashReport("AppDomain 未处理异常", uex);
+                    }
+                };
+
                 // ★★★ 启动时自校验（防调包，用户 2026-10-09 的要求）
                 //     "发现它被调包了就能拉停，而不是被感染"
                 if (cfg.SelfCheckOnStart)
@@ -1301,6 +1354,7 @@ namespace WARDEN
             catch (Exception e)
             {
                 Log("致命错误: " + e);
+                WriteCrashReport("主流程", e);
             }
         }
 
