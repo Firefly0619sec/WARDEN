@@ -183,6 +183,34 @@ public static string DetectCode()
         }
 
         /// <summary>★ 有哪些语言可用（内置 + 用户放的）。</summary>
+        /// <summary>
+        /// ★ 语言显示名（下拉框里显示这个，不显示 BCP47 代码 ✗）
+        ///   例：繁體中文（中國臺灣）✓  繁体地区用官方称呼 + 当地用字
+        /// </summary>
+        public static string DisplayName(string code)
+        {
+            try
+            {
+                foreach (string dir in PackDirs)
+                {
+                    string f = Path.Combine(dir, code + ".txt");
+                    if (!File.Exists(f))
+                    {
+                        continue;
+                    }
+                    foreach (string line in File.ReadAllLines(f))
+                    {
+                        if (line.StartsWith("name=", StringComparison.Ordinal))
+                        {
+                            return line.Substring(5).Trim();
+                        }
+                    }
+                }
+            }
+            catch { }
+            return code;   // 读不到名字就退回代码 ✓
+        }
+
         public static List<string> Available()
         {
             var list = new List<string> { "zh-Hans" };

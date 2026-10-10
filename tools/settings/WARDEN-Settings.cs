@@ -168,18 +168,32 @@ namespace WardenSettings
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Bounds = new Rectangle(684, 14, 136, 22),
             };
+            // ★ 显示【名字】不显示代码（用户 2026-10-10 要求 ✗）
             foreach (string code in WardenLang.Lang.Available())
             {
-                _cbLang.Items.Add(code);
+                _cbLang.Items.Add(WardenLang.Lang.DisplayName(code) + "  (" + code + ")");
             }
             if (_cbLang.Items.Count > 0)
             {
-                int idx = _cbLang.Items.IndexOf(WardenLang.Lang.Code);
+                int idx = -1;
+                    for (int i2 = 0; i2 < _cbLang.Items.Count; i2++)
+                    {
+                        if ((_cbLang.Items[i2] as string ?? "").EndsWith(
+                                "(" + WardenLang.Lang.Code + ")"))
+                        {
+                            idx = i2;
+                            break;
+                        }
+                    }
                 _cbLang.SelectedIndex = idx >= 0 ? idx : 0;
             }
             _cbLang.SelectedIndexChanged += (s2, e2) =>
             {
-                string code = _cbLang.SelectedItem as string ?? "zh-Hans";
+                string shown = _cbLang.SelectedItem as string ?? "简体中文  (zh-Hans)";
+                    int lp = shown.LastIndexOf('(');
+                    string code = lp > 0
+                        ? shown.Substring(lp + 1).TrimEnd(')', ' ')
+                        : "zh-Hans";
                 try
                 {
                     WardenLang.Lang.Load(code);
