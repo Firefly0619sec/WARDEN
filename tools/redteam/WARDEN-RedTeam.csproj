@@ -16,6 +16,7 @@
     <RootNamespace>WardenRedTeam</RootNamespace>
     <AssemblyTitle>WARDEN 红队自测工具</AssemblyTitle>
     <Product>WARDEN</Product>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <Version>0.1.0-beta.1</Version>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>

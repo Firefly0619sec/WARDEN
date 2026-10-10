@@ -9,7 +9,7 @@
            → 单独做一个 exe，和五个组件一样的模式（独立、可单独更新）
 
        【为什么教程不用 Markdown 渲染库】
-           本来可以引 Markdig（BSD-2-Clause，与 GPL-3.0 兼容）
+           本来可以引 Markdig（BSD-2-Clause，与 AGPL-3.0 兼容）
            但那会增加一个 NuGet 依赖
            → 改成语言包驱动的结构化教程：
                正文全在语言包里，翻译者改语言包就能出外语版
@@ -27,7 +27,7 @@
     <Version>0.1.0-beta.1</Version>
     <Product>WARDEN 帮助中心</Product>
     <Authors>Firefly0619sec</Authors>
-    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
 
     <PublishAot>false</PublishAot>
     <SelfContained>true</SelfContained>
