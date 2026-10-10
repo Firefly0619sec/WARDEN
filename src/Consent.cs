@@ -112,12 +112,12 @@ namespace WARDEN
             public uint cRadioButtons;
             public IntPtr pRadioButtons;
             public int nDefaultRadioButton;
-            public IntPtr pszVerificationText;   // ★ "不再询问"复选框的文字（我们不用，留空）
+            public IntPtr pszVerificationText;   // ★ WARDEN.L.T("不再询问")复选框的文字（我们不用，留空）
             public IntPtr pszExpandedInformation;   // ★ 展开后的详细信息（我们不用）
-            public IntPtr pszExpandedControlText;   // ★ "展开"按钮的文字（我们不用）
-            public IntPtr pszCollapsedControlText;   // ★ "折叠"按钮的文字（我们不用）
+            public IntPtr pszExpandedControlText;   // ★ WARDEN.L.T("展开")按钮的文字（我们不用）
+            public IntPtr pszCollapsedControlText;   // ★ WARDEN.L.T("折叠")按钮的文字（我们不用）
             public IntPtr hFooterIcon;        // 与 pszFooterIcon 共用
-            public IntPtr pszFooter;   // ★ 页脚文字（我们用来放"系统关键进程不会出现在本提示里"这类说明）
+            public IntPtr pszFooter;   // ★ 页脚文字（我们用来放L.T("系统关键进程不会出现在本提示里")这类说明）
             public IntPtr pfCallback;
             public IntPtr lpCallbackData;
             public uint cxWidth;
@@ -417,33 +417,33 @@ namespace WARDEN
                 string windowTitle;
                 if (revived)
                 {
-                    windowTitle = "WARDEN —— 这个程序被强杀后又回来了";
+                    windowTitle = WARDEN.L.T("WARDEN —— 这个程序被强杀后又回来了");
                 }
                 else if (stage == ConsentStage.First)
                 {
-                    windowTitle = "WARDEN —— 发现一个关不掉的弹窗";
+                    windowTitle = WARDEN.L.T("WARDEN —— 发现一个关不掉的弹窗");
                 }
                 else
                 {
-                    windowTitle = "WARDEN —— 常规手段已确认失效";
+                    windowTitle = WARDEN.L.T("WARDEN —— 常规手段已确认失效");
                 }
 
                 string mainInstruction;
                 if (revived)
                 {
-                    mainInstruction = "强杀之后它又复活了";
+                    mainInstruction = WARDEN.L.T("强杀之后它又复活了");
                 }
                 else if (stage == ConsentStage.First)
                 {
-                    mainInstruction = "这个程序的弹窗关不掉";
+                    mainInstruction = WARDEN.L.T("这个程序的弹窗关不掉");
                 }
                 else
                 {
-                    mainInstruction = "常规拦截手段对这个程序已经完全失效";
+                    mainInstruction = WARDEN.L.T("常规拦截手段对这个程序已经完全失效");
                 }
 
                 string content = BuildContent(proc, imagePath, title, failures, stage, revived);
-                string footer = "系统关键进程不会出现在本提示里。"
+                string footer = WARDEN.L.T(WARDEN.L.T("系统关键进程不会出现在本提示里。"))
                               + "  想永久放行某个程序？在配置文件的 consented_processes 里加上它。";
 
                 // ★★★ 命令链接：推荐项随"是否复活"变化
@@ -453,12 +453,12 @@ namespace WARDEN
                 //     因为它会反复回来，只有持续打掉它，
                 //     用户才有时间去用专业卸载工具彻底清除 ✓
                 string b1 = stage == ConsentStage.First
-                    ? "允许本次强杀\n这一次强制结束它"
-                    : "立即强杀\n立刻强制结束它（建议）";
+                    ? WARDEN.L.T("允许本次强杀\n这一次强制结束它")
+                    : WARDEN.L.T("立即强杀\n立刻强制结束它（建议）");
                 string b2 = revived
-                    ? "永久允许强杀（建议）\n它一冒头就被打掉，方便你去卸载它"
-                    : "永久允许强杀\n以后遇到它直接强杀，不再询问";
-                string b3 = "拒绝，继续尝试隐藏\n不使用强制手段";
+                    ? WARDEN.L.T("永久允许强杀（建议）\n它一冒头就被打掉，方便你去卸载它")
+                    : WARDEN.L.T("永久允许强杀\n以后遇到它直接强杀，不再询问");
+                string b3 = WARDEN.L.T("拒绝，继续尝试隐藏\n不使用强制手段");
 
                 IntPtr pTitle = Str(windowTitle);
                 IntPtr pMain = Str(mainInstruction);
@@ -555,11 +555,11 @@ namespace WARDEN
                                            int failures, ConsentStage stage, bool revived)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("程序：" + (string.IsNullOrEmpty(proc) ? "(未知)" : proc));
-            sb.AppendLine("窗口：" + Cut(title, 56));
+            sb.AppendLine(WARDEN.L.T("程序：") + (string.IsNullOrEmpty(proc) ? WARDEN.L.T("(未知)") : proc));
+            sb.AppendLine(WARDEN.L.T("窗口：") + Cut(title, 56));
             if (!string.IsNullOrEmpty(imagePath))
             {
-                sb.AppendLine("位置：" + Cut(imagePath, 80));
+                sb.AppendLine(WARDEN.L.T("位置：") + Cut(imagePath, 80));
             }
             sb.AppendLine();
 

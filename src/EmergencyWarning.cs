@@ -64,7 +64,7 @@ namespace WARDEN
         private static Action<string>? _log;
         private static string _className = string.Empty;
         private static Btn[] _buttons = new Btn[0];
-        private static string _status = "★ 下面四个按钮都会【立刻生效】，且只作用于已经确认的流氓程序";
+        private static string _status = WARDEN.L.T("★ 下面四个按钮都会【立刻生效】，且只作用于已经确认的流氓程序");
         private static int _statusY;
         private static int _bodyBottom;
 
@@ -139,7 +139,7 @@ namespace WARDEN
 
                 IntPtr hwnd = CreateWindowExW(
                     WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
-                    _className, "WARDEN 应急警告",
+                    _className, WARDEN.L.T("WARDEN 应急警告"),
                     WS_POPUP | WS_VISIBLE,
                     x, y, w, h,
                     IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
@@ -168,7 +168,7 @@ namespace WARDEN
 
                 // ★★★ 默认动作：自动导出证据（用户要求），并在界面上【明说】✓
                 //   放后台线程：导出是磁盘 IO（以后再加上报网络），别卡住界面 ✗
-                _status = "★ 正在自动导出证据到桌面…";
+                _status = WARDEN.L.T("★ 正在自动导出证据到桌面…");
                 var exporter = new Thread(() =>
                 {
                     try
@@ -179,7 +179,7 @@ namespace WARDEN
                     }
                     catch (Exception ex)
                     {
-                        _status = "证据导出失败：" + ex.Message;
+                        _status = WARDEN.L.T("证据导出失败：") + ex.Message;
                     }
                     IntPtr h2 = _hwnd;
                     if (h2 != IntPtr.Zero)
@@ -266,16 +266,16 @@ namespace WARDEN
             int statusY = row1Y - 48;
 
             var list = new Btn[5];
-            list[0] = new Btn { Action = ActEscalate, Label = "加倍压制（更狠）",
+            list[0] = new Btn { Action = ActEscalate, Label = WARDEN.L.T("加倍压制（更狠）"),
                                 Rect = R(left, row1Y, bw, bh) };
-            list[1] = new Btn { Action = ActExtend, Label = "延长压制 5 分钟",
+            list[1] = new Btn { Action = ActExtend, Label = WARDEN.L.T("延长压制 5 分钟"),
                                 Rect = R(left + bw + gap, row1Y, bw, bh) };
-            list[2] = new Btn { Action = ActFreezeAll, Label = "冻结全部可疑进程",
+            list[2] = new Btn { Action = ActFreezeAll, Label = WARDEN.L.T("冻结全部可疑进程"),
                                 Rect = R(left, row2Y, bw, bh) };
-            list[3] = new Btn { Action = ActExport, Label = "重新导出证据",
+            list[3] = new Btn { Action = ActExport, Label = WARDEN.L.T("重新导出证据"),
                                 Rect = R(left + bw + gap, row2Y, bw, bh) };
             int cw = bw * 2 + gap;
-            list[4] = new Btn { Action = ActClose, Label = "我知道了，关闭这个警告",
+            list[4] = new Btn { Action = ActClose, Label = WARDEN.L.T("我知道了，关闭这个警告"),
                                 Rect = R((w - cw) / 2, closeY, cw, bh) };
             _buttons = list;
 
@@ -425,22 +425,22 @@ namespace WARDEN
                 {
                     case ActEscalate:
                         result = Emergency.Escalate();
-                        b.Label = "加倍压制（已升级）";
+                        b.Label = WARDEN.L.T("加倍压制（已升级）");
                         break;
 
                     case ActExtend:
                         result = Emergency.Extend(300);
-                        b.Label = "已延长 5 分钟";
+                        b.Label = WARDEN.L.T("已延长 5 分钟");
                         break;
 
                     case ActFreezeAll:
                         result = Emergency.RequestFreezeAll();
-                        b.Label = "冻结全部（持续生效）";
+                        b.Label = WARDEN.L.T("冻结全部（持续生效）");
                         break;
 
                     case ActExport:
                         result = Emergency.AutoExport();
-                        b.Label = "已重新导出";
+                        b.Label = WARDEN.L.T("已重新导出");
                         break;
 
                     case ActClose:
@@ -454,7 +454,7 @@ namespace WARDEN
             }
             catch (Exception e)
             {
-                result = "操作失败：" + e.Message;
+                result = WARDEN.L.T("操作失败：") + e.Message;
                 _log?.Invoke("[EMERGENCY-UI] action failed: " + e.Message);
             }
 
@@ -523,13 +523,13 @@ namespace WARDEN
                 oldFont = SelectObject(hdc, fTitle);
                 SetTextColor(hdc, 0x00FFFFFF);
                 var rTitle = new RECT { left = 0, top = 26, right = w, bottom = 118 };
-                DrawTextW(hdc, "⚠  WARDEN 正在被攻击", -1, ref rTitle,
+                DrawTextW(hdc, WARDEN.L.T("⚠  WARDEN 正在被攻击"), -1, ref rTitle,
                           DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
                 SelectObject(hdc, fSub);
                 SetTextColor(hdc, 0x00FFD9D9);
                 var rSub = new RECT { left = 0, top = 148, right = w, bottom = 192 };
-                DrawTextW(hdc, "我已经进入【应急压制模式】，正在按住那个程序",
+                DrawTextW(hdc, WARDEN.L.T("我已经进入【应急压制模式】，正在按住那个程序"),
                           -1, ref rSub, DT_CENTER | DT_SINGLELINE);
 
                 // ---- 正文 ----
@@ -625,14 +625,14 @@ namespace WARDEN
             SetTextColor(hdc, 0x00FFFFFF);
             var r = new RECT { left = 40, top = 40, right = Math.Max(60, w - 40), bottom = rc.bottom - 40 };
             DrawTextW(hdc,
-                "WARDEN 正在被攻击 —— 已经进入应急压制模式。"
+                WARDEN.L.T("WARDEN 正在被攻击 —— 已经进入应急压制模式。")
                 + Environment.NewLine + Environment.NewLine
-                + "请按顺序做：" + Environment.NewLine
-                + "1) 用 Geek Uninstaller 卸掉你最近装的那个软件；" + Environment.NewLine
-                + "2) 用 Windows 安全中心（或卡巴斯基）做一次扫描；" + Environment.NewLine
-                + "3) 卸不掉就重启进安全模式再卸。" + Environment.NewLine
+                + WARDEN.L.T("请按顺序做：") + Environment.NewLine
+                + WARDEN.L.T("1) 用 Geek Uninstaller 卸掉你最近装的那个软件；") + Environment.NewLine
+                + WARDEN.L.T("2) 用 Windows 安全中心（或卡巴斯基）做一次扫描；") + Environment.NewLine
+                + WARDEN.L.T("3) 卸不掉就重启进安全模式再卸。") + Environment.NewLine
                 + Environment.NewLine
-                + "现在先别重启电脑。",
+                + WARDEN.L.T("现在先别重启电脑。"),
                 -1, ref r, DT_LEFT | DT_TOP | DT_WORDBREAK | DT_NOPREFIX);
         }
 
@@ -642,17 +642,17 @@ namespace WARDEN
             // ★ 文案要压在一屏内（加过一版太长的，被状态行裁掉了 ✗）
             //   → 不留空行、句子尽量短 ✓
             var sb = new StringBuilder();
-            sb.AppendLine("刚才有程序试图关掉 WARDEN（或伪造它的停止请求），已进入应急压制模式。");
-            sb.AppendLine("下面四个按钮【点下去立刻生效】，只作用于已经确认的流氓程序：");
-            sb.AppendLine("① 加倍压制 —— 盯得更密、压得更多，把桌面抢回来。");
-            sb.AppendLine("② 延长压制 —— 再顶 5 分钟，给你时间去卸载。");
-            sb.AppendLine("③ 冻结全部 —— 把所有可疑程序冻住（只冻不杀，证据还在）。");
-            sb.AppendLine("④ 重新导出 —— 手动再导一次（进应急时已经自动导过一遍）。");
-            sb.AppendLine("你该做的（约 3 分钟）：");
-            sb.AppendLine("· 用「Geek Uninstaller」卸掉最近装的那个软件（通常就是它）。");
-            sb.AppendLine("· 用「Windows 安全中心」快速扫描；想更彻底用卡巴斯基免费版全盘扫。");
-            sb.AppendLine("· 卸不掉 / 又回来 → 重启进【安全模式】再卸；现在先别重启电脑。");
-            sb.AppendLine("★ 证据已【自动导出到桌面】：万一我们被强行杀掉，你手上还有现场记录。");
+            sb.AppendLine(WARDEN.L.T("刚才有程序试图关掉 WARDEN（或伪造它的停止请求），已进入应急压制模式。"));
+            sb.AppendLine(WARDEN.L.T("下面四个按钮【点下去立刻生效】，只作用于已经确认的流氓程序："));
+            sb.AppendLine(WARDEN.L.T("① 加倍压制 —— 盯得更密、压得更多，把桌面抢回来。"));
+            sb.AppendLine(WARDEN.L.T("② 延长压制 —— 再顶 5 分钟，给你时间去卸载。"));
+            sb.AppendLine(WARDEN.L.T("③ 冻结全部 —— 把所有可疑程序冻住（只冻不杀，证据还在）。"));
+            sb.AppendLine(WARDEN.L.T("④ 重新导出 —— 手动再导一次（进应急时已经自动导过一遍）。"));
+            sb.AppendLine(WARDEN.L.T("你该做的（约 3 分钟）："));
+            sb.AppendLine(WARDEN.L.T("· 用「Geek Uninstaller」卸掉最近装的那个软件（通常就是它）。"));
+            sb.AppendLine(WARDEN.L.T("· 用「Windows 安全中心」快速扫描；想更彻底用卡巴斯基免费版全盘扫。"));
+            sb.AppendLine(WARDEN.L.T("· 卸不掉 / 又回来 → 重启进【安全模式】再卸；现在先别重启电脑。"));
+            sb.AppendLine(WARDEN.L.T("★ 证据已【自动导出到桌面】：万一我们被强行杀掉，你手上还有现场记录。"));
             sb.AppendLine("★ 目前【不会外发】：上报给作者的功能要等 WARDEN 仓库建好后启用。");
             sb.AppendLine("★ WARDEN 只做用户态压制：不替你清除、不装驱动、不碰内核。");
             return sb.ToString();

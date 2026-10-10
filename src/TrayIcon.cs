@@ -183,15 +183,15 @@ namespace WARDEN
             {
                 case TrayState.Paused:
                     want = "-paused";
-                    tip = L.T("WARDEN（已暂停守护）");
+                    tip = WARDEN.L.T("WARDEN（已暂停守护）");
                     break;
                 case TrayState.Emergency:
                     want = "-emergency";
-                    tip = L.T("WARDEN（应急压制中）");
+                    tip = WARDEN.L.T("WARDEN（应急压制中）");
                     break;
                 default:
                     want = "";
-                    tip = L.T("WARDEN（守护中）");
+                    tip = WARDEN.L.T("WARDEN（守护中）");
                     break;
             }
 
@@ -431,15 +431,15 @@ namespace WARDEN
                     return;
                 }
 
-                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_OPEN_SETTINGS, L.T("打开设置界面"));
+                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_OPEN_SETTINGS, WARDEN.L.T("打开设置界面"));
                 AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
                 AppendMenuW(menu, MF_STRING | (IsPaused ? MF_CHECKED : 0),
                             (UIntPtr)CMD_PAUSE,
                             IsPaused ? "继续守护" : "暂停守护");
-                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_RELOAD, L.T("重新加载配置"));
-                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_VIEW_LOG, L.T("查看日志"));
+                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_RELOAD, WARDEN.L.T("重新加载配置"));
+                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_VIEW_LOG, WARDEN.L.T("查看日志"));
                 AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
-                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_EXIT, L.T("退出 WARDEN"));
+                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_EXIT, WARDEN.L.T("退出 WARDEN"));
 
                 if (!GetCursorPos(out POINT pt))
                 {

@@ -1074,9 +1074,9 @@ namespace WARDEN
             }
                 // ★ 语言包诊断（用户报"菜单还是英文/中文"时一眼看出 ✓）
                 Log("[语言] 主程序语言=" + L.Code
-                    + "  菜单示例=" + L.T("暂停守护")
-                    + "  提示示例=" + L.T("WARDEN（守护中）"));
-                    _tray.SetTooltip(L.T("WARDEN（守护中）"));
+                    + "  菜单示例=" + WARDEN.L.T("暂停守护")
+                    + "  提示示例=" + WARDEN.L.T("WARDEN（守护中）"));
+                    _tray.SetTooltip(WARDEN.L.T("WARDEN（守护中）"));
                 }
                 else
                 {
