@@ -50,6 +50,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -65,9 +66,14 @@ namespace WardenLang
     internal static class Lang
     {
         // ★ 语言包目录（用户可放自己的语言包）
-        private static readonly string PackDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WARDEN", "lang");
+        // ★ 两个来源：exe 目录的 lang\（我们发的包 ✓）+ 数据目录的 lang\（用户自己加的 ✓）
+        private static readonly string PackDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN", "lang");   // 兼容旧引用 ✓
+        private static readonly string[] PackDirs =
+        {
+            Path.Combine(AppContext.BaseDirectory.TrimEnd('\\'), "lang"),
+            Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData), "WARDEN", "lang"),
+        };
 
         private static readonly Dictionary<string, string> Ui = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, string> Tags = new(StringComparer.OrdinalIgnoreCase);
@@ -97,25 +103,49 @@ namespace WardenLang
         /// <summary>★ 决定用哪个语言：环境变量 → 系统界面语言 → 简体中文</summary>
         public static string DetectCode()
         {
-            string env = Environment.GetEnvironmentVariable("WARDEN_LANG") ?? "";
-            if (env.Trim().Length > 0) return env.Trim();
+            // ★ 五种语言（用户 2026-10-10 补充要求）：
+            //    简中 / 英语 / 繁中（台灣·香港·澳門 各自一份 ✓ 用词不同 ✗）
+            var avail = Available();
+            string ui = System.Globalization.CultureInfo.CurrentUICulture.Name;
 
-            try
+            string want;
+            if (ui.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase)
+                || ui.StartsWith("zh-Hant-TW", StringComparison.OrdinalIgnoreCase))
             {
-                string ui = System.Globalization.CultureInfo.CurrentUICulture.Name;
-                if (ui.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
-                {
-                    // ★ 繁体也先走简体（以后加 zh-Hant 包就自动切过去）
-                    return Available().Contains("zh-Hant") && ui.Contains("Hant")
-                        ? "zh-Hant" : "zh-Hans";
-                }
-                if (ui.StartsWith("en", StringComparison.OrdinalIgnoreCase)
-                    && Available().Contains("en"))
-                {
-                    return "en";
-                }
+                want = "zh-TW";
             }
-            catch { }
+            else if (ui.StartsWith("zh-HK", StringComparison.OrdinalIgnoreCase)
+                     || ui.StartsWith("zh-Hant-HK", StringComparison.OrdinalIgnoreCase))
+            {
+                want = "zh-HK";
+            }
+            else if (ui.StartsWith("zh-MO", StringComparison.OrdinalIgnoreCase)
+                     || ui.StartsWith("zh-Hant-MO", StringComparison.OrdinalIgnoreCase))
+            {
+                want = "zh-MO";
+            }
+            else if (ui.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+                     && ui.IndexOf("Hant", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                want = "zh-TW";     // 其它繁体地区 → 先按台灣 ✓
+            }
+            else if (ui.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+            {
+                want = "zh-Hans";   // 简中（含 zh-CN / zh-SG）✓
+            }
+            else
+            {
+                want = "en";        // 其它语言 → 英语 ✓（没有 en 包就退回简中 ✓）
+            }
+
+            if (avail.Contains(want))
+            {
+                return want;
+            }
+            if (avail.Contains("en") && want == "en")
+            {
+                return "en";
+            }
             return "zh-Hans";
         }
 
@@ -127,7 +157,8 @@ namespace WardenLang
             {
                 if (Directory.Exists(PackDir))
                 {
-                    foreach (var f in Directory.GetFiles(PackDir, "*.txt"))
+                    foreach (var f in PackDirs.SelectMany(d => Directory.Exists(d)
+                ? Directory.GetFiles(d, "*.txt") : new string[0]))
                     {
                         string c = Path.GetFileNameWithoutExtension(f);
                         if (!list.Contains(c)) list.Add(c);
