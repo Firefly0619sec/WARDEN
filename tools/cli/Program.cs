@@ -66,7 +66,7 @@ namespace WardenCli
                 case "rules": return Rules();
                 case "report": return Report();
                 case "version":
-                    Console.WriteLine("WARDEN 0.1.0-beta.1 (AGPL-3.0-or-later)");
+                    Console.WriteLine("WARDEN 0.1.0-beta.2 (AGPL-3.0-or-later)");
                     Console.WriteLine("数据目录: " + DataDir);
                     return 0;
                 default:

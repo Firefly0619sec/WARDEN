@@ -47,7 +47,7 @@ namespace WardenHelp
 {
     internal static class Program
     {
-        internal const string Version = "0.1.0-beta.1";
+        internal const string Version = "0.1.0-beta.2";
 
         [STAThread]
         private static void Main(string[] args)

@@ -18,7 +18,7 @@
     <AssemblyTitle>WARDEN 命令行工具</AssemblyTitle>
     <Product>WARDEN</Product>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-    <Version>0.1.0-beta.1</Version>
+    <Version>0.1.0-beta.2</Version>
     <DebugType>none</DebugType>
   </PropertyGroup>
 
