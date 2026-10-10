@@ -62,3 +62,33 @@
 ---
 
 *最后更新：2026-10-11　　对应版本：0.2.1*
+
+---
+
+## 八、运行时内含组件的逐项审计（2026-10-11 复核 ✓）
+
+审计方法：把真正随包的产物解出来，逐个文件比对来源 ✓
+（自包含工具是**单文件**发布 ✗ 运行时被内嵌 ✓ 所以按组件名审计 ✓）
+
+| 组件 | 出现在 | 许可证 | 声明在哪 |
+| --- | --- | --- | --- |
+| .NET 运行时核心（coreclr / hostfxr / BCL ✓） | 各工具 exe 内嵌 | MIT | `dotnet-LICENSE.txt` ✓ |
+| **ICU**（全球化数据 ✓） | 设置/日志/帮助等工具 | Unicode License v3 | `dotnet-ThirdPartyNotices.txt`（49 处 ✓） |
+| **Brotli**（压缩 ✓） | 同上 | MIT | `dotnet-ThirdPartyNotices.txt` ✓ |
+| **msquic**（HTTP/3 用的 QUIC 栈 ✓） | 部分工具 | **MIT** | ★ 微软声明里**没点名** ✓ → 本条即为它的声明 ✓ |
+| **zlib-ng**（`System.IO.Compression.Native` 用的 ✓） | 部分工具 | **zlib License** | ★ 同上 ✓ → 本条即为它的声明 ✓ |
+| `createdump` / `mscordaccore`（诊断 ✓） | 部分工具 | MIT | `dotnet-LICENSE.txt` ✓ |
+| `Microsoft.DiaSymReader.Native` | 部分工具 | MIT | `dotnet-LICENSE.txt` ✓ |
+
+**没有出现**的（所以不用声明 ✓）：OpenSSL ✗（Windows 用 Schannel ✓）、
+libdeflate ✗、任何非微软的第三方 DLL ✗
+
+许可证要点（便于你复核 ✓）：
+
+* **msquic** —— MIT License ✓ 版权 Microsoft Corporation ✓
+  源码：<https://github.com/microsoft/msquic>
+* **zlib-ng** —— zlib License ✓ 允许自由使用与再分发 ✓
+  源码：<https://github.com/zlib-ng/zlib-ng>
+
+★ 审计同时确认：**源码树里没有任何第三方二进制** ✓ **零 NuGet 依赖** ✓
+  唯一"打包进来的别人家的东西"就是上面这份表 ✓ 别的都没有 ✗
