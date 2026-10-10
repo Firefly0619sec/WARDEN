@@ -52,7 +52,7 @@ namespace WardenSettings
             Application.SetCompatibleTextRenderingDefault(false);
             // ★ 出异常不要静默消失 ✗ 弹出来让用户看到 ✓
             Application.ThreadException += (s, e) =>
-                MessageBox.Show("发生错误：\n" + e.Exception.Message, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("发生错误：\n") + e.Exception.Message, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             try
             {
@@ -60,7 +60,7 @@ namespace WardenSettings
             }
             catch (Exception ex)
             {
-                MessageBox.Show("启动失败：\n" + ex, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("启动失败：\n") + ex, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -95,7 +95,7 @@ namespace WardenSettings
         /// </summary>
         public MainForm()
         {
-            Text = "WARDEN 设置";
+            Text = WardenLang.Lang.Tr("WARDEN 设置");
             ClientSize = new Size(830, 640);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Microsoft YaHei UI", 9f);
@@ -133,7 +133,7 @@ namespace WardenSettings
             BuildSecurityTab();
             BuildLogTab();
 
-            var btnSave = new Button { Text = "保存配置", Location = new Point(12, 12), Size = new Size(110, 32) };
+            var btnSave = new Button { Text = WardenLang.Lang.Tr("保存配置"), Location = new Point(12, 12), Size = new Size(110, 32) };
             btnSave.Click += (s, e) => SaveConfig();
 
             // ★★★ 「语言」单独一栏（用户 2026-10-10 要求）：
@@ -244,10 +244,10 @@ namespace WardenSettings
 
             bottom.Controls.Add(btnSave);
 
-            var btnReload = new Button { Text = "重新加载", Location = new Point(130, 12), Size = new Size(100, 32) };
+            var btnReload = new Button { Text = WardenLang.Lang.Tr("重新加载"), Location = new Point(130, 12), Size = new Size(100, 32) };
             btnReload.Click += (s, e) =>
             {
-                if (MessageBox.Show("重新读取配置文件？\n界面上的未保存修改会丢失。", "WARDEN 设置",
+                if (MessageBox.Show(WardenLang.Lang.Tr("重新读取配置文件？\n界面上的未保存修改会丢失。"), "WARDEN 设置",
                         MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
                 {
                     LoadConfig();
@@ -329,11 +329,11 @@ namespace WardenSettings
             _lvRules.Columns.Add("标题关键词", 400);
             b.Controls.Add(_lvRules);
 
-            var btnAdd = new Button { Text = "新增规则", Location = new Point(0, 440), Size = new Size(105, 30) };
+            var btnAdd = new Button { Text = WardenLang.Lang.Tr("新增规则"), Location = new Point(0, 440), Size = new Size(105, 30) };
             btnAdd.Click += (s, e) => AddRuleDialog();
             b.Controls.Add(btnAdd);
 
-            var btnDel = new Button { Text = "删除选中", Location = new Point(113, 440), Size = new Size(105, 30) };
+            var btnDel = new Button { Text = WardenLang.Lang.Tr("删除选中"), Location = new Point(113, 440), Size = new Size(105, 30) };
             btnDel.Click += (s, e) =>
             {
                 foreach (ListViewItem it in _lvRules.SelectedItems.Cast<ListViewItem>().ToList())
@@ -343,7 +343,7 @@ namespace WardenSettings
             };
             b.Controls.Add(btnDel);
 
-            var btnEdit = new Button { Text = "编辑选中", Location = new Point(226, 440), Size = new Size(105, 30) };
+            var btnEdit = new Button { Text = WardenLang.Lang.Tr("编辑选中"), Location = new Point(226, 440), Size = new Size(105, 30) };
             btnEdit.Click += (s, e) => EditRuleDialog();
             b.Controls.Add(btnEdit);
 
@@ -486,7 +486,7 @@ namespace WardenSettings
             };
             b.Controls.Add(_txtTermHist);
 
-            var btnClear = new Button { Text = "清空强杀历史", Location = new Point(400, 216), Size = new Size(140, 30) };
+            var btnClear = new Button { Text = WardenLang.Lang.Tr("清空强杀历史"), Location = new Point(400, 216), Size = new Size(140, 30) };
             btnClear.Click += (s, e) => _txtTermHist.Text = "";
             b.Controls.Add(btnClear);
 
@@ -513,7 +513,7 @@ namespace WardenSettings
             _txtHash = new TextBox { Location = new Point(10, y), Size = new Size(600, 24) };
             b.Controls.Add(_txtHash); y += 32;
 
-            var btnCalc = new Button { Text = "用当前 WARDEN.exe 的哈希填入", Location = new Point(10, y), Size = new Size(240, 30) };
+            var btnCalc = new Button { Text = WardenLang.Lang.Tr("用当前 WARDEN.exe 的哈希填入"), Location = new Point(10, y), Size = new Size(240, 30) };
             btnCalc.Click += (s, e) => FillHash();
             b.Controls.Add(btnCalc); y += 46;
 
@@ -553,7 +553,7 @@ namespace WardenSettings
             Panel b;
             NewTab("日志", out b);
 
-            var btnRefresh = new Button { Text = "刷新日志", Location = new Point(0, 0), Size = new Size(100, 28) };
+            var btnRefresh = new Button { Text = WardenLang.Lang.Tr("刷新日志"), Location = new Point(0, 0), Size = new Size(100, 28) };
             btnRefresh.Click += (s, e) => RefreshLog();
             b.Controls.Add(btnRefresh);
 
@@ -569,7 +569,7 @@ namespace WardenSettings
             b.Controls.Add(_numLines);
             b.Controls.Add(Lbl("行（最近的）", 194, 6, 90));
 
-            var btnOpen = new Button { Text = "打开日志所在文件夹", Location = new Point(290, 0), Size = new Size(170, 28) };
+            var btnOpen = new Button { Text = WardenLang.Lang.Tr("打开日志所在文件夹"), Location = new Point(290, 0), Size = new Size(170, 28) };
             btnOpen.Click += (s, e) =>
             {
                 if (Directory.Exists(_toolDir)) System.Diagnostics.Process.Start("explorer.exe", _toolDir);
@@ -849,12 +849,12 @@ namespace WardenSettings
                 sb.AppendLine("}");
 
                 File.WriteAllText(CfgPath, sb.ToString(), new UTF8Encoding(false));
-                MessageBox.Show("已保存到：\n" + CfgPath, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("已保存到：\n") + CfgPath, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("保存失败：\n" + ex.Message, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("保存失败：\n") + ex.Message, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -893,7 +893,7 @@ namespace WardenSettings
         {
             if (!File.Exists(ExePath))
             {
-                MessageBox.Show("找不到：\n" + ExePath + "\n\n请把本工具和 WARDEN.exe 放在同一个目录。",
+                MessageBox.Show(WardenLang.Lang.Tr("找不到：\n") + ExePath + "\n\n请把本工具和 WARDEN.exe 放在同一个目录。",
                                 "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -901,12 +901,12 @@ namespace WardenSettings
             if (h.Length == 64)
             {
                 _txtHash.Text = h;
-                MessageBox.Show("已填入当前 WARDEN.exe 的 SHA256：\n" + h, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("已填入当前 WARDEN.exe 的 SHA256：\n") + h, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
-                MessageBox.Show("总算不出哈希 —— 检查一下 WARDEN.exe 能不能读 ✓",
+                MessageBox.Show(WardenLang.Lang.Tr("总算不出哈希 —— 检查一下 WARDEN.exe 能不能读 ✓"),
                                 "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
@@ -919,7 +919,7 @@ namespace WardenSettings
         {
             if (!File.Exists(ExePath))
             {
-                MessageBox.Show("找不到：\n" + ExePath + "\n\n请把本工具和 WARDEN.exe 放在同一个目录。",
+                MessageBox.Show(WardenLang.Lang.Tr("找不到：\n") + ExePath + "\n\n请把本工具和 WARDEN.exe 放在同一个目录。",
                                 "WARDEN 设置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -932,7 +932,7 @@ namespace WardenSettings
             }
             catch (Exception ex)
             {
-                MessageBox.Show("启动失败：\n" + ex.Message, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("启动失败：\n") + ex.Message, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -958,7 +958,7 @@ namespace WardenSettings
             }
             catch (Exception ex)
             {
-                MessageBox.Show("停止失败：\n" + ex.Message, "WARDEN 设置",
+                MessageBox.Show(WardenLang.Lang.Tr("停止失败：\n") + ex.Message, "WARDEN 设置",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -973,12 +973,12 @@ namespace WardenSettings
                 var procs = System.Diagnostics.Process.GetProcessesByName("WARDEN");
                 if (procs.Length > 0)
                 {
-                    _lblStatus.Text = "状态：✓ 运行中（PID " + procs[0].Id + "）";
+                    _lblStatus.Text = WardenLang.Lang.Tr("状态：✓ 运行中（PID ") + procs[0].Id + "）";
                     _lblStatus.ForeColor = Color.Green;
                 }
                 else
                 {
-                    _lblStatus.Text = "状态：· 未运行";
+                    _lblStatus.Text = WardenLang.Lang.Tr("状态：· 未运行");
                     _lblStatus.ForeColor = Color.Gray;
                 }
 
@@ -1035,7 +1035,7 @@ namespace WardenSettings
         {
             if (!File.Exists(LogPath))
             {
-                _txtLog.Text = "（还没有日志文件）";
+                _txtLog.Text = WardenLang.Lang.Tr("（还没有日志文件）");
                 return;
             }
             var lines = TailLines(LogPath, (int)_numLines.Value);
@@ -1066,26 +1066,26 @@ namespace WardenSettings
             MinimizeBox = false;
             Font = new Font("Microsoft YaHei UI", 9f);
 
-            Controls.Add(new Label { Text = "规则名称", Location = new Point(15, 20), Size = new Size(110, 20) });
+            Controls.Add(new Label { Text = WardenLang.Lang.Tr("规则名称"), Location = new Point(15, 20), Size = new Size(110, 20) });
             _t1 = new TextBox { Location = new Point(130, 17), Size = new Size(310, 24), Text = name };
             Controls.Add(_t1);
 
-            Controls.Add(new Label { Text = "进程名（可空）", Location = new Point(15, 58), Size = new Size(110, 20) });
+            Controls.Add(new Label { Text = WardenLang.Lang.Tr("进程名（可空）"), Location = new Point(15, 58), Size = new Size(110, 20) });
             _t2 = new TextBox { Location = new Point(130, 55), Size = new Size(310, 24), Text = proc };
             Controls.Add(_t2);
 
-            Controls.Add(new Label { Text = "标题关键词", Location = new Point(15, 96), Size = new Size(110, 20) });
+            Controls.Add(new Label { Text = WardenLang.Lang.Tr("标题关键词"), Location = new Point(15, 96), Size = new Size(110, 20) });
             _t3 = new TextBox { Location = new Point(130, 93), Size = new Size(310, 24), Text = kws };
             Controls.Add(_t3);
             Controls.Add(new Label
             {
-                Text = "（多个用英文逗号分隔）",
+                Text = WardenLang.Lang.Tr("（多个用英文逗号分隔）"),
                 Location = new Point(130, 118),
                 Size = new Size(310, 20),
                 ForeColor = Color.Gray
             });
 
-            var ok = new Button { Text = "确定", Location = new Point(240, 165), Size = new Size(95, 30), DialogResult = DialogResult.OK };
+            var ok = new Button { Text = WardenLang.Lang.Tr("确定"), Location = new Point(240, 165), Size = new Size(95, 30), DialogResult = DialogResult.OK };
             ok.Click += (s, e) =>
             {
                 if (string.IsNullOrWhiteSpace(_t2.Text) && string.IsNullOrWhiteSpace(_t3.Text))
@@ -1096,7 +1096,7 @@ namespace WardenSettings
             };
             Controls.Add(ok);
 
-            var cc = new Button { Text = "取消", Location = new Point(345, 165), Size = new Size(95, 30), DialogResult = DialogResult.Cancel };
+            var cc = new Button { Text = WardenLang.Lang.Tr("取消"), Location = new Point(345, 165), Size = new Size(95, 30), DialogResult = DialogResult.Cancel };
             Controls.Add(cc);
 
             AcceptButton = ok;

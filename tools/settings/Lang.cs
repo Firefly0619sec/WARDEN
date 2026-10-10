@@ -349,6 +349,74 @@ public static string DetectCode()
         // ================================================================
 
         /// <summary>★ 取界面文字。找不到就返回 key（不会显示成空白）✓</summary>
+        private static readonly Dictionary<string, string> _textTable
+            = new Dictionary<string, string>(StringComparer.Ordinal);
+        private static string _textTableCode = "";
+
+        /// <summary>
+        /// ★★★ 按【中文原文】翻译（2026-10-10 新增）
+        ///   【为什么这么做】
+        ///     界面里散落着几百条硬编码中文 ✗ 一条条编 key 又慢又容易漏 ✗
+        ///     改成：语言包里写「原文=译文」，代码里写 Lang.Tr("原文") ✓
+        ///     加一门新语言 = 复制一份语言包改右侧 ✓ 不用改代码 ✓
+        ///   查不到就原样返回（绝不显示空白或 key ✗）
+        /// </summary>
+        public static string Tr(string source)
+        {
+            if (string.IsNullOrEmpty(source))
+            {
+                return source;
+            }
+            try
+            {
+                if (_textTableCode != Code)
+                {
+                    _textTable.Clear();
+                    _textTableCode = Code;
+                    foreach (string dir in PackDirs)
+                    {
+                        string f = Path.Combine(dir, Code + ".txt");
+                        if (!File.Exists(f))
+                        {
+                            continue;
+                        }
+                        bool inText = false;
+                        foreach (string line in File.ReadAllLines(f))
+                        {
+                            string ln = line.Trim();
+                            if (ln.StartsWith("["))
+                            {
+                                inText = ln.StartsWith("[text]");
+                                continue;
+                            }
+                            if (!inText || ln.Length == 0 || ln.StartsWith("#"))
+                            {
+                                continue;
+                            }
+                            int eq = ln.IndexOf('=');
+                            if (eq <= 0)
+                            {
+                                continue;
+                            }
+                            string k2 = ln.Substring(0, eq).Replace("\\n", "\n");
+                            string v2 = ln.Substring(eq + 1).Replace("\\n", "\n");
+                            _textTable[k2] = v2;
+                        }
+                        break;
+                    }
+                }
+                if (_textTable.TryGetValue(source, out string? hit))
+                {
+                    return hit;
+                }
+            }
+            catch
+            {
+                // 读语言包失败 → 原样返回，界面不能因为翻译炸掉 ✗
+            }
+            return source;
+        }
+
         public static string T(string key)
             => Ui.TryGetValue(key, out var v) ? v : key;
 
