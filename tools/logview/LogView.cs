@@ -100,6 +100,10 @@ namespace WardenLogView
             var bRefresh = new Button { Text = "刷新", Bounds = new Rectangle(586, 532, 70, 28) };
             var bFolder = new Button { Text = "打开文件夹", Bounds = new Rectangle(662, 532, 100, 28) };
             var bReport = new Button { Text = "导出报告", Bounds = new Rectangle(768, 532, 100, 28) };
+            // ★ F5：上报证据（脱敏 + 预览 + 明文/PGP 二选一 ✓ 默认不选=不上传 ✗）
+            var bReport2 = new Button { Text = "上报证据", Bounds = new Rectangle(768, 496, 100, 28) };
+            bReport2.Click += (s, e) => EvidenceReport.Show(this);
+            Controls.Add(bReport2);
             bRefresh.Click += (s, e) => Reload();
             bFolder.Click += (s, e) =>
             {
