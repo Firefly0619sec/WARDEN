@@ -172,6 +172,20 @@ namespace WardenUninstall
             L("CreateWindowExW hwnd=" + _hwnd);
             uint dpi = GetDpiForWindow(_hwnd);
             _scale = dpi > 0 ? dpi / 96.0 : 1.0;
+            // ★ 2026-10-11 高 DPI 验收用的测试钩子：
+            //   设了 WARDEN_TEST_DPI=120/144/192 就按该 DPI 渲染 ✓
+            //   用途：不修改系统缩放（那要注销 ✓ 会影响用户桌面）也能验证 125%/150%/200% 布局 ✓
+            //   生产环境不设这个变量 → 完全无影响 ✓
+            try
+            {
+                string? forced = Environment.GetEnvironmentVariable("WARDEN_TEST_DPI");
+                if (!string.IsNullOrEmpty(forced) && uint.TryParse(forced, out uint fd) && fd >= 96)
+                {
+                    _scale = fd / 96.0;
+                    L("★ 测试钩子生效：按 DPI " + fd + " 渲染（缩放 " + _scale.ToString("0.00") + "x ✓）");
+                }
+            }
+            catch { }
             int wReal = S(wWin), hReal = S(hWin);
             SetWindowPos(_hwnd, IntPtr.Zero, (GetSystemMetrics(0) - wReal) / 2, (GetSystemMetrics(1) - hReal) / 2,
                 wReal, hReal, 0x0004 /*SWP_NOZORDER*/);
