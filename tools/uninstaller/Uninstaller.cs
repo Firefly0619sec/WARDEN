@@ -23,8 +23,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-// ★ 2026-10-11 Beta 3：不再依赖 WinForms ✗（改用同目录的 Win32Ui.cs 原生实现 ✓ 以便 Native AOT）
-
+using System.Windows.Forms;
 using Microsoft.Win32;
 
 using WardenSetup;   // ★ 复用安装器里的停止令牌实现 ✓
@@ -68,9 +67,10 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                // ★ 2026-10-11 Beta 3：原生 Win32 确认窗（WinForms 版已改名 .winforms-bak 保留 ✓）
-                purge = Win32Ui.Ask(purge);
-                if (purge == false && Win32Ui.Cancelled)
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                purge = UninstallForm.Ask(purge);
+                if (purge == false && UninstallForm.Cancelled)
                 {
                     Log("用户取消卸载");
                     return;
@@ -82,13 +82,13 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                // ★ 原生消息框（取代 WinForms MessageBox ✗ AOT 安全 ✓）
-                Win32Ui.Msg(ok
+                MessageBox.Show(ok
                         ? "WARDEN 已卸载。\n\n" + (purge
                             ? "配置与日志也已删除。"
                             : "你的配置与日志【保留】在：\n" + DataDir + "\n（要一起删就再运行一次并勾选删除）")
                         : "卸载完成，但有部分文件没删掉（可能还在运行）。\n详情见：\n" + LogPath,
-                    "WARDEN 卸载", ok);
+                    "WARDEN 卸载", MessageBoxButtons.OK,
+                    ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
             Environment.Exit(ok ? 0 : 4);
         }
