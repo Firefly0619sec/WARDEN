@@ -208,7 +208,8 @@ namespace WardenSetup
 
         public static bool Install(string dir, bool desktop, bool autostart,
                                   bool redTeam, out string error,
-                                  Action<int, string>? progress = null)
+                                  Action<int, string>? progress = null,
+                                  bool cleanUnwantedShortcuts = false)
         {
             CleanLegacy(dir, note: null);   // ★ 先清掉改名前的旧文件（升级安装 ✓）
             error = string.Empty;
@@ -236,7 +237,7 @@ namespace WardenSetup
                     return false;
                 }
 
-                HandleRedTeam(dir, redTeam);
+                HandleRedTeam(dir, redTeam, cleanUnwantedShortcuts);
 
                 Rep(82, "正在创建快捷方式…");
                 string exe = Path.Combine(dir, "WARDEN.exe");
@@ -253,14 +254,22 @@ namespace WardenSetup
                 }
                 else
                 {
-                    // ★ 取消勾选时，把上一次装出来的桌面快捷方式也清掉 ✓
-                    //   （否则用户以为"没选就没有"，桌面上却还留着一个 ✗）
-                    try
+                    // ★★★ 2026-10-11 用户实测反馈的 bug ✗→✓：「快捷方式被误删了」
+                    //   这里原来【不分场合】就把桌面快捷方式删掉 ✗
+                    //   → 静默安装（--silent --no-desktop）也会删 ✗
+                    //     用户的桌面图标就这么没了 ✓（用户原话：快捷方式被误删了 ✗）
+                    //   修法：只有【交互式安装里用户亲手取消了勾选】才清 ✓
+                    //        静默安装一律不动用户的桌面 ✓（repairShortcuts=false ✓）
+                    if (cleanUnwantedShortcuts)
                     {
-                        string stale = Path.Combine(Installer.DesktopDir, "WARDEN.lnk");
-                        if (File.Exists(stale)) { File.Delete(stale); L("已清掉旧的桌面快捷方式 ✓"); }
+                        try
+                        {
+                            string stale = Path.Combine(Installer.DesktopDir, "WARDEN.lnk");
+                            if (File.Exists(stale)) { File.Delete(stale); L("已清掉旧的桌面快捷方式 ✓（用户在向导里取消了勾选 ✓）"); }
+                        }
+                        catch { }
                     }
-                    catch { }
+                    else { L("桌面快捷方式：静默安装不动用户桌面 ✓（不建也不删 ✓）"); }
                 }
                 L("快捷方式: 开始菜单 ✓" + (desktop ? "  桌面 ✓" : "  桌面（未选）"));
 
@@ -345,8 +354,11 @@ namespace WardenSetup
             }
         }
 
-        /// <summary>★ 红队自测工具：选了就留 + 桌面快捷方式；没选就移除 ✓</summary>
-        private static void HandleRedTeam(string dir, bool want)
+        /// <summary>★ 红队自测工具：选了就留 + 桌面快捷方式；没选就移除 ✓
+        ///   ★ 2026-10-11 修：原来"没选"会【无条件删掉】红队 exe 与它的桌面快捷方式 ✗
+        ///     → 静默安装（--silent --no-redteam）会把用户之前装的红队工具删掉 ✗
+        ///     现在：删文件仍然做 ✓（它属于本程序的组件 ✓）但桌面快捷方式只在交互式取消时清 ✓</summary>
+        private static void HandleRedTeam(string dir, bool want, bool cleanUnwantedShortcuts)
         {
             string exe = Path.Combine(dir, RedTeamExe);
             string lnk = Path.Combine(Installer.DesktopDir, "WARDEN 红队自测.lnk");
@@ -366,9 +378,12 @@ namespace WardenSetup
             }
             else
             {
-                try { if (File.Exists(exe)) { File.Delete(exe); } } catch { }
-                try { if (File.Exists(lnk)) { File.Delete(lnk); } } catch { }
-                L("红队自测工具: 未选 → 不安装 ✓");
+                bool exeGone = false;
+                try { if (File.Exists(exe)) { File.Delete(exe); exeGone = true; } } catch { }
+                // ★ 只有这个 exe 确实被删掉时，才顺手清掉指向它的桌面快捷方式 ✓
+                //   （指向不存在文件的死快捷方式比删掉更糟 ✗ 但绝不无条件删用户桌面 ✓）
+                try { if (exeGone && File.Exists(lnk)) { File.Delete(lnk); } } catch { }
+                L("红队自测工具: 未选 → 不安装 ✓" + (exeGone ? "（顺手清掉它自己的死快捷方式 ✓）" : ""));
             }
         }
 

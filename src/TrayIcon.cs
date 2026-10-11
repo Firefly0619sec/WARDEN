@@ -31,6 +31,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace WARDEN
@@ -80,6 +82,14 @@ namespace WARDEN
         private const int CMD_VIEW_LOG = 1003;
         private const int CMD_RELOAD = 1004;
         private const int CMD_EXIT = 1005;
+        // ★ 2026-10-11 用户反馈「托盘的更新没了」✗ → 把更新入口加回托盘 ✓
+        //   （更新器 Updater.exe 一直在产品里 ✓ 但界面上没有任何入口 ✗
+        //     用户只能自己去程序目录双击 ✓ 等于"更新功能不见了"✗）
+        private const int CMD_UPDATE = 1006;
+
+        // ★ 托盘要能弹一句"找不到更新器"✗（不静默失败 ✓）→ 这里自带一个声明 ✓
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct NOTIFYICONDATA
@@ -248,6 +258,35 @@ namespace WARDEN
 
         /// <summary>用户点了"退出"。</summary>
         public bool ExitRequested { get; set; }
+
+        /// <summary>
+        /// ★ 打开更新器（2026-10-11 用户反馈「托盘的更新没了」✗ 之后补上 ✓）
+        ///   规则：更新器就在程序目录里 ✓ 找不到就【明确告诉用户】✗ 不静默失败 ✓
+        /// </summary>
+        private void OpenUpdater()
+        {
+            try
+            {
+                string dir = AppContext.BaseDirectory.TrimEnd('\\');
+                string exe = Path.Combine(dir, "Updater.exe");
+                if (!File.Exists(exe))
+                {
+                    _log("[托盘] ★ 找不到更新器：" + exe);
+                    MessageBoxW(_hwnd,
+                        "找不到更新器 Updater.exe ✗\n\n应该在：\n" + exe +
+                        "\n\n如果你是用绿色版（只拷了 WARDEN.exe），更新器不在里面 ✓\n" +
+                        "可以到发布页下载完整安装包 ✓",
+                        "WARDEN", 0x00000030 /*MB_ICONWARNING*/);
+                    return;
+                }
+                Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = dir, UseShellExecute = true });
+                _log("[托盘] 已启动更新器 ✓ " + exe);
+            }
+            catch (Exception e)
+            {
+                _log("[托盘] ★ 启动更新器失败：" + e.Message);
+            }
+        }
 
         /// <summary>用户点了"打开设置界面"。</summary>
         public bool OpenSettingsRequested { get; set; }
@@ -438,6 +477,7 @@ namespace WARDEN
                             IsPaused ? "继续守护" : "暂停守护");
                 AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_RELOAD, WARDEN.L.T("重新加载配置"));
                 AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_VIEW_LOG, WARDEN.L.T("查看日志"));
+                AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_UPDATE, WARDEN.L.T("更新 WARDEN（打开更新器）"));
                 AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
                 AppendMenuW(menu, MF_STRING, (UIntPtr)CMD_EXIT, WARDEN.L.T("退出 WARDEN"));
 
@@ -476,6 +516,11 @@ namespace WARDEN
                     case CMD_VIEW_LOG:
                         ViewLogRequested = true;
                         _log("[托盘] 打开日志");
+                        break;
+
+                    case CMD_UPDATE:
+                        _log("[托盘] 打开更新器");
+                        OpenUpdater();
                         break;
 
                     case CMD_EXIT:
