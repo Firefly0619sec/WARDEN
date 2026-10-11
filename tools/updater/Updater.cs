@@ -25,7 +25,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
-using System.Windows.Forms;
+// 0.3.1：不再依赖 WinForms（改用 UpdaterWin32.cs 的原生接口）以便 Native AOT
 using WardenSetup;   // ★ 复用安装器的 StopToken（写合法停止令牌）✓
 
 namespace WardenUpdater
@@ -73,18 +73,17 @@ namespace WardenUpdater
                     Environment.Exit(2);
                     return;
                 }
-                Application.EnableVisualStyles();
-                using var d = new OpenFileDialog
-                {
-                    Title = "选择 WARDEN 更新包（zip）",
-                    Filter = "WARDEN 更新包 (*.zip)|*.zip|所有文件|*.*",
-                };
-                if (d.ShowDialog() != DialogResult.OK)
+                // 0.3.1：改用系统原生「打开」对话框（comdlg32.dll ✓ AOT 安全 ✓）
+                //   过滤串用 \0 分隔（原生格式 ✓）不再是 WinForms 的竖线格式
+                string? picked = Win32Ui.PickZipFile(
+                    "选择 WARDEN 更新包（zip）",
+                    "WARDEN 更新包 (*.zip)\0*.zip\0所有文件\0*.*\0");
+                if (string.IsNullOrEmpty(picked))
                 {
                     Log("用户取消");
                     return;
                 }
-                zip = d.FileName;
+                zip = picked!;
             }
 
             if (!File.Exists(zip))
@@ -142,10 +141,8 @@ namespace WardenUpdater
 
             if (!silent)
             {
-                Application.EnableVisualStyles();
-                MessageBox.Show(
-                    "更新完成 ✓\n\n如果新版有问题，可以回退到这一次的备份：\n" + backup,
-                    "WARDEN 更新", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Win32Ui.Msg("更新完成 ✓\n\n如果新版有问题，可以回退到这一次的备份：\n" + backup,
+                    "WARDEN 更新", true);
             }
             Environment.Exit(0);
         }
