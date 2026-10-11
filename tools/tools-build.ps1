@@ -51,11 +51,32 @@ foreach ($k in $tools.Keys) {
         $failed += $k
         continue
     }
-    $found = Get-ChildItem (Join-Path $dir 'bin\Release') -Recurse -File -Filter $exeName -ErrorAction SilentlyContinue |
-             Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    # ★ 2026-10-11 修（Help 缺陷的根因之一）：不能用"最新时间"随便挑 ✗
+    #   开了 PublishAot 的工具，产物在 bin\Release\...\win-x64\native\ ✓
+    #   而没开的工具（或历史残留）在 publish\ ✓ 后者可能是"多文件应用的空壳 exe"✗
+    #   （Help 就栽在这里：publish\Help.exe 只有 174 KB，真代码在同目录 219 个 dll 里 ✓）
+    $isAot = $false
+    $cp = Get-ChildItem $dir -File -Filter '*.csproj' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cp) { $isAot = ((Get-Content $cp.FullName -Raw) -match '<PublishAot>true</PublishAot>') }
+    $found = $null
+    if ($isAot) {
+        $found = Get-ChildItem (Join-Path $dir 'bin\Release') -Recurse -File -Filter $exeName -ErrorAction SilentlyContinue |
+                 Where-Object { $_.DirectoryName -match '\\native$' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+    if (-not $found) {
+        $found = Get-ChildItem (Join-Path $dir 'bin\Release') -Recurse -File -Filter $exeName -ErrorAction SilentlyContinue |
+                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
     if (-not $found) { Write-Host ('    ★ 编译成功但找不到产物 ' + $exeName) -ForegroundColor Red; $failed += $k; continue }
+    $sizeMb = [math]::Round($found.Length / 1MB, 2)
+    $from = if ($found.DirectoryName -match '\\native$') { 'native(AOT)' } else { 'publish' }
     Copy-Item $found.FullName (Join-Path $distApp $exeName) -Force
-    Write-Host ('    ✓ ' + $exeName + '  ' + [math]::Round($found.Length / 1MB, 2) + ' MB') -ForegroundColor Green
+    Write-Host ('    ✓ ' + $exeName + '  ' + $sizeMb + ' MB   来源=' + $from) -ForegroundColor Green
+    # ★ 硬闸门：AOT 工具的体积必须小；出现几十 MB 说明挑到了自包含版或空壳 ✗
+    if ($isAot -and $found.Length -gt 8MB) {
+        Write-Host ('    ★ ' + $exeName + ' 声明了 PublishAot 却有 ' + $sizeMb + ' MB ✗ 可能是空壳或多文件应用 → 拒绝打包 ✓') -ForegroundColor Red
+        $failed += $k
+    }
 }
 
 if ($failed.Count -gt 0) {
@@ -70,6 +91,7 @@ $mainExe = Join-Path $root 'src\bin\Release\net10.0-windows\win-x64\publish\WARD
 if (Test-Path $mainExe) {
     Copy-Item $mainExe (Join-Path $distApp 'WARDEN.exe') -Force
     Write-Host ('  ✓ WARDEN.exe  ' + [math]::Round((Get-Item $mainExe).Length / 1MB, 2) + ' MB') -ForegroundColor Green
+    if ((Get-Item $mainExe).Length -gt 8MB) { Write-Host '  ★ WARDEN.exe 应当 < 8MB（AOT ✓）却更大 ✗ 拒绝打包 ✓' -ForegroundColor Red; exit 1 }
 } else {
     Write-Host '  ★ 找不到主程序产物 WARDEN.exe ✗（先跑 build.ps1 的 Step 1）' -ForegroundColor Red
     exit 1
