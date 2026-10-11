@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 #  ★★★ 安全闸（事故后新增，2026-10-10）：
 #    之前发生过"仓库被整空"的事故 ✗ 从此构建脚本必须：
 #      ① 先打一份快照（只增不删）
@@ -7,6 +7,7 @@
 #   原来：把【整个仓库】压成一个 zip ✗ 含 bin/obj/dist/publish ✓
 #        实测每份 1.5 GB ✗ 一天构建 6 次 = 白吃 9 GB 磁盘 ✓
 #   现在：只备源码（排构建产物）+ 只留最近 5 份 + 5 分钟内不重复备 ✓
+$RepoRoot = $PSScriptRoot
 $snap = Join-Path $env:USERPROFILE 'Documents\WARDEN-快照'
 New-Item -ItemType Directory -Path $snap -Force | Out-Null
 $last = Get-ChildItem $snap -File -Filter 'WARDEN-*-构建前.zip' -ErrorAction SilentlyContinue |
