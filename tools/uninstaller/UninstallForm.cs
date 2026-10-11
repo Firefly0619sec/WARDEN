@@ -62,6 +62,11 @@ namespace WardenUninstall
             {
                 Text = "卸载 WARDEN",
                 ForeColor = Color.White,
+                // ★ 2026-10-11 修（截图看出来的 bug ✓）：
+                //   Label 默认【不透明】✗ 会带着浅灰底色盖住蓝底 ✓
+                //   于是白字压浅灰 → 标题几乎看不清 ✓（见 截图-0.3.0\01-主窗口.png）
+                //   AOT 版是 DrawTextW 直接画在蓝底上 ✓ 天生没这个问题 ✓
+                BackColor = Color.Transparent,
                 Font = new Font("Microsoft YaHei UI", 13F, FontStyle.Bold),
                 Bounds = new Rectangle(20, 16, 400, 30),
             });
@@ -95,9 +100,12 @@ namespace WardenUninstall
             {
                 if (_ckPurge.Checked)
                 {
+                    // ★ 2026-10-11 修（截图看出来的 ✓）：危险动作的默认按钮必须是【否】✗
+                    //   原来默认落在【是】上 ✓ 手快按个回车就把证据删了 ✓
                     var r = MessageBox.Show(this,
                         "确定连配置与日志一起删掉吗？\n\n删了就找不回来了 ✗",
-                        "WARDEN 卸载", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        "WARDEN 卸载", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2);
                     if (r != DialogResult.Yes)
                     {
                         return;
