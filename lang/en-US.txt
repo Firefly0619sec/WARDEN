@@ -24,6 +24,66 @@ code=en-US
 name=English (US)
 
 [ui]
+help.btn.openPage=Open releases page
+help.openFailed=Could not open the browser: 
+help.siblingMissing=Cannot find {0}.\n\nThis means the installation is incomplete (it is a required component in a normal install).\nPlease run the WARDEN installer again to repair it.
+fb.detailHint=The more specific the better: what you did, what you expected, what happened
+fb.contactHint=(optional) leave one if you want a reply
+fb.attachDiag=Attach diagnostics (version, OS, settings summary, log summary)
+fb.diagHint=★ Diagnostics mask the user name in your file paths.\n★ Until you click submit, this content goes nowhere.
+fb.defaultTitle=(briefly describe the problem)
+fb.tooLong=Too long for a GitHub link.
+fb.tooLongAsk=The full content has been copied to the clipboard.\n\nClick Yes to open the GitHub new-issue page,\nthen press Ctrl+V to paste it in.\n\nClick No to skip sending for now.
+fb.copiedForPaste=Copied to clipboard — press Ctrl+V on the GitHub page
+fb.openedInBrowser=Opened in your browser — please check the content once more before submitting
+fb.copiedLong=Content copied to the clipboard.\n\nYou can send it to the distributor or to a group chat,\nand ask someone with a GitHub account to post it for you.\n\n★ Creating a GitHub account takes a minute,\n  and you get update notifications directly.
+fb.noAccountHint=★ No GitHub account? Click "Copy" and send it to the distributor to pass along.
+help.title=WARDEN Tutorial
+help.heading=WARDEN Tutorial
+help.subheading=Pick a section on the left. Three sections and you are up to speed.
+help.btn.feedback=Report a problem
+help.btn.settings=Open settings
+help.sec.quick.title=1. Up and running in three minutes
+help.sec.quick.body=Once WARDEN is installed it quietly watches windows in the background — you do not have to do anything.\n\nTo check it is alive: look for the horn-player icon in the tray area (next to the clock).\n\nOn first start it asks you one question:\n  Do you want to begin in "drill mode"?\n   · Drill mode = log only, never act — good for watching for a few days\n   · Off = start blocking windows right away\n\nNo registration, no network. Install and it works.
+help.sec.tray.title=2. Using the tray icon
+help.sec.tray.body=Right-click the tray icon and you get:\n\n  Open settings        change rules and thresholds\n  Pause protection / Resume protection   let it rest for a while\n  Reload settings      after editing the settings file, no restart needed\n  View logs            see what it actually did\n  Check for updates    look for a newer release\n  Uninstall WARDEN     you no longer want it\n  Quit                 shut it down completely\n\n★ Double-clicking the tray icon opens Settings directly (fastest).
+help.sec.blocked.title=3. Blocked too much / not enough
+help.sec.blocked.body=【It is too aggressive and blocked something I was using】\n  Open Settings → "Protection" tab\n  Check that all three anti-collateral switches are on (they are on by default)\n  Still blocked → "Lists" tab, add that program to the whitelist\n\n【Popups still appear】\n  ① Open "Log analysis" to see what it is doing\n  ② If the log says [DRYRUN], it is only observing — turn drill mode off in Settings\n  ③ If it says "force-kill denied", the safety gate stopped it\n     That is a protection feature, not a fault\n\n【A program comes back after being killed】\n  The log will show "guardian detected"\n  That program runs its own watchdog, so it restarts itself when killed\n  Use a tool such as Geek Uninstaller to remove it completely.
+help.sec.dryrun.title=4. What is drill mode
+help.sec.dryrun.body=Drill mode = log only, never act.\n\nWhen to use it:\n  · Just installed: watch which windows it would act on, before trusting it\n  · Something went wrong and you want evidence for the developer\n\nToggle: Settings → "Protection" tab → drill mode\n\n★ Only after turning it off will windows really be blocked. It asks once on first start.\n★ While it is on, the log contains [DRYRUN] and log analysis shows "would have done…".
+help.sec.rules.title=5. Adding your own rules
+help.sec.rules.body=Settings → "Rules" tab → "Add rule"\n\nA rule needs:\n  Name            anything you like — name the software so you recognize it later\n  Process name    e.g. qq.exe (file name only, not the full path)\n  Title keywords  matches if the title contains these, e.g. 活动/福利/推荐\n  or title regex  more flexible, but do not make it too broad or it may hit the wrong window\n\n★ A rule is only a starting point — acting also depends on the behavior score\n  (dozens of new windows in seconds, repeatedly stealing focus, coming back after being closed…)\n  So a broad rule will not cause random killings ✓
+help.sec.safety.title=6. Safety notes (important)
+help.sec.safety.body=★ WARDEN itself is completely offline.\n  Only when you click "Check for updates" does the updater contact GitHub, once.\n\n★ Safety and protection switches are all ON by default:\n  signature gate / whitelist no-kill / self-check on start / halt if the program itself was modified\n  three anti-collateral switches (never touch the focused window, skip windows with input boxes, skip windows with child controls)\n\n★ Programs with a valid code signature are never hard-killed by default — at most hidden or asked to close\n\n★ Force actions are NOT pre-authorised by default:\n  when it meets a window it cannot suppress, it asks whether to act, and only acts once with your live consent\n  This is called "manual elevation" — the decision is always yours\n\n★ Update packages are checked against SHA256 and the digital signature; if either fails, the install is refused.
+help.sec.update.title=7. Updating
+help.sec.update.body=Right-click the tray icon → "Check for updates"\n\nTwo channels:\n  Stable    stable, recommended\n  Beta      early access, may have bugs (pick this to help test)\n\n★ Cannot reach GitHub:\n  The program will not hang; it explains what happened and offers alternatives\n  (open the releases page in a browser / check your proxy / try later)\n\n★ If you got the package from somewhere else, always right-click → Properties → Digital Signatures\n  and confirm the signer is Firefly0619sec before running it.
+help.sec.uninstall.title=8. Uninstalling
+help.sec.uninstall.body=Three ways, pick one:\n\n  ① Control Panel → Programs and Features → WARDEN → Uninstall\n  ② Start menu → WARDEN folder → Uninstall\n  ③ Right-click the tray icon → Uninstall WARDEN\n\nWhile uninstalling:\n  · You can tick "keep settings and logs"\n  · The program folder disappears only after the uninstall window closes (that is normal)\n  · At the end it tells you the code-signing certificate was not removed, and how to remove it by hand
+help.sec.faq.title=9. FAQ
+help.sec.faq.body=【The tray icon is gone】\n  It may be collapsed: click the up arrow ^ in the tray area\n  Or WARDEN exited: check Task Manager for WARDEN.exe\n\n【Settings will not open】\n  Right-click the tray icon → Open settings\n  If that fails, run the installer again (it repairs missing components)\n\n【I changed the settings file but nothing happened】\n  Right-click the tray icon → Reload settings\n\n【My antivirus complained】\n  WARDEN reads window information and ends processes, which looks similar to malware behavior\n  This is a false positive. You can whitelist this folder:\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【Still stuck】\n  Click "Report a problem" below and submit it to GitHub\n  No GitHub account needed: one-click copy, then send it to the distributor to pass along
+fb.title=Report a problem
+fb.heading=Report a problem / suggest an idea
+fb.kind=Type:
+fb.kind.bug=Bug (something is broken)
+fb.kind.idea=Idea (a new feature)
+fb.kind.other=Other
+fb.subject=Subject:
+fb.detail=Details:
+fb.contact=Contact:
+fb.preview=Preview
+fb.btn.github=Submit on GitHub
+fb.btn.copy=Copy
+fb.btn.save=Save to file
+fb.copied=Copied to clipboard
+fb.saved=Saved to: {0}
+fb.r.kind=Type
+fb.r.contact=Contact
+fb.r.detail=Details
+fb.r.diag=Diagnostics
+diag.env=Environment
+diag.files=Components
+diag.config=Settings summary
+diag.log=Log summary
 app.title=WARDEN
 app.subtitle=Popup and window behavior blocker
 common.ok=OK
@@ -202,79 +262,19 @@ ERROR=(startup message)
 ^\[ERROR\]\s*(.*)$	★ 出错了：{1}
 
 # ── 帮助中心（教程页）──────────────────────────────────────────
-help.title=WARDEN Tutorial
-help.heading=WARDEN Tutorial
-help.subheading=Pick a section on the left. Three sections and you are up to speed.
-help.btn.feedback=Report a problem
-help.btn.openPage=Open releases page
-help.btn.settings=Open settings
-help.openFailed=Could not open the browser: 
-help.siblingMissing=Cannot find {0}.\n\nThis means the installation is incomplete (it is a required component in a normal install).\nPlease run the WARDEN installer again to repair it.
 
-help.sec.quick.title=1. Up and running in three minutes
-help.sec.quick.body=Once WARDEN is installed it quietly watches windows in the background — you do not have to do anything.\n\nTo check it is alive: look for the horn-player icon in the tray area (next to the clock).\n\nOn first start it asks you one question:\n  Do you want to begin in "drill mode"?\n   · Drill mode = log only, never act — good for watching for a few days\n   · Off = start blocking windows right away\n\nNo registration, no network. Install and it works.
 
-help.sec.tray.title=2. Using the tray icon
-help.sec.tray.body=Right-click the tray icon and you get:\n\n  Open settings        change rules and thresholds\n  Pause protection / Resume protection   let it rest for a while\n  Reload settings      after editing the settings file, no restart needed\n  View logs            see what it actually did\n  Check for updates    look for a newer release\n  Uninstall WARDEN     you no longer want it\n  Quit                 shut it down completely\n\n★ Double-clicking the tray icon opens Settings directly (fastest).
 
-help.sec.blocked.title=3. Blocked too much / not enough
-help.sec.blocked.body=【It is too aggressive and blocked something I was using】\n  Open Settings → "Protection" tab\n  Check that all three anti-collateral switches are on (they are on by default)\n  Still blocked → "Lists" tab, add that program to the whitelist\n\n【Popups still appear】\n  ① Open "Log analysis" to see what it is doing\n  ② If the log says [DRYRUN], it is only observing — turn drill mode off in Settings\n  ③ If it says "force-kill denied", the safety gate stopped it\n     That is a protection feature, not a fault\n\n【A program comes back after being killed】\n  The log will show "guardian detected"\n  That program runs its own watchdog, so it restarts itself when killed\n  Use a tool such as Geek Uninstaller to remove it completely.
 
-help.sec.dryrun.title=4. What is drill mode
-help.sec.dryrun.body=Drill mode = log only, never act.\n\nWhen to use it:\n  · Just installed: watch which windows it would act on, before trusting it\n  · Something went wrong and you want evidence for the developer\n\nToggle: Settings → "Protection" tab → drill mode\n\n★ Only after turning it off will windows really be blocked. It asks once on first start.\n★ While it is on, the log contains [DRYRUN] and log analysis shows "would have done…".
 
-help.sec.rules.title=5. Adding your own rules
-help.sec.rules.body=Settings → "Rules" tab → "Add rule"\n\nA rule needs:\n  Name            anything you like — name the software so you recognize it later\n  Process name    e.g. qq.exe (file name only, not the full path)\n  Title keywords  matches if the title contains these, e.g. 活动/福利/推荐\n  or title regex  more flexible, but do not make it too broad or it may hit the wrong window\n\n★ A rule is only a starting point — acting also depends on the behavior score\n  (dozens of new windows in seconds, repeatedly stealing focus, coming back after being closed…)\n  So a broad rule will not cause random killings ✓
 
-help.sec.safety.title=6. Safety notes (important)
-help.sec.safety.body=★ WARDEN itself is completely offline.\n  Only when you click "Check for updates" does the updater contact GitHub, once.\n\n★ Safety and protection switches are all ON by default:\n  signature gate / whitelist no-kill / self-check on start / halt if the program itself was modified\n  three anti-collateral switches (never touch the focused window, skip windows with input boxes, skip windows with child controls)\n\n★ Programs with a valid code signature are never hard-killed by default — at most hidden or asked to close\n\n★ Force actions are NOT pre-authorised by default:\n  when it meets a window it cannot suppress, it asks whether to act, and only acts once with your live consent\n  This is called "manual elevation" — the decision is always yours\n\n★ Update packages are checked against SHA256 and the digital signature; if either fails, the install is refused.
 
-help.sec.update.title=7. Updating
-help.sec.update.body=Right-click the tray icon → "Check for updates"\n\nTwo channels:\n  Stable    stable, recommended\n  Beta      early access, may have bugs (pick this to help test)\n\n★ Cannot reach GitHub:\n  The program will not hang; it explains what happened and offers alternatives\n  (open the releases page in a browser / check your proxy / try later)\n\n★ If you got the package from somewhere else, always right-click → Properties → Digital Signatures\n  and confirm the signer is Firefly0619sec before running it.
 
-help.sec.uninstall.title=8. Uninstalling
-help.sec.uninstall.body=Three ways, pick one:\n\n  ① Control Panel → Programs and Features → WARDEN → Uninstall\n  ② Start menu → WARDEN folder → Uninstall\n  ③ Right-click the tray icon → Uninstall WARDEN\n\nWhile uninstalling:\n  · You can tick "keep settings and logs"\n  · The program folder disappears only after the uninstall window closes (that is normal)\n  · At the end it tells you the code-signing certificate was not removed, and how to remove it by hand
 
-help.sec.faq.title=9. FAQ
-help.sec.faq.body=【The tray icon is gone】\n  It may be collapsed: click the up arrow ^ in the tray area\n  Or WARDEN exited: check Task Manager for WARDEN.exe\n\n【Settings will not open】\n  Right-click the tray icon → Open settings\n  If that fails, run the installer again (it repairs missing components)\n\n【I changed the settings file but nothing happened】\n  Right-click the tray icon → Reload settings\n\n【My antivirus complained】\n  WARDEN reads window information and ends processes, which looks similar to malware behavior\n  This is a false positive. You can whitelist this folder:\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【Still stuck】\n  Click "Report a problem" below and submit it to GitHub\n  No GitHub account needed: one-click copy, then send it to the distributor to pass along
 
 # ── 帮助中心（反馈页）──────────────────────────────────────────
-fb.title=Report a problem
-fb.heading=Report a problem / suggest an idea
-fb.kind=Type:
-fb.kind.bug=Bug (something is broken)
-fb.kind.idea=Idea (a new feature)
-fb.kind.other=Other
-fb.subject=Subject:
-fb.detail=Details:
-fb.detailHint=The more specific the better: what you did, what you expected, what happened
-fb.contact=Contact:
-fb.contactHint=(optional) leave one if you want a reply
-fb.attachDiag=Attach diagnostics (version, OS, settings summary, log summary)
-fb.diagHint=★ Diagnostics mask the user name in your file paths.\n★ Until you click submit, this content goes nowhere.
-fb.preview=Preview
-fb.btn.github=Submit on GitHub
-fb.btn.copy=Copy
-fb.btn.save=Save to file
-fb.defaultTitle=(briefly describe the problem)
-fb.tooLong=Too long for a GitHub link.
-fb.tooLongAsk=The full content has been copied to the clipboard.\n\nClick Yes to open the GitHub new-issue page,\nthen press Ctrl+V to paste it in.\n\nClick No to skip sending for now.
-fb.copiedForPaste=Copied to clipboard — press Ctrl+V on the GitHub page
-fb.openedInBrowser=Opened in your browser — please check the content once more before submitting
-fb.copied=Copied to clipboard
-fb.copiedLong=Content copied to the clipboard.\n\nYou can send it to the distributor or to a group chat,\nand ask someone with a GitHub account to post it for you.\n\n★ Creating a GitHub account takes a minute,\n  and you get update notifications directly.
-fb.saved=Saved to: {0}
-fb.noAccountHint=★ No GitHub account? Click "Copy" and send it to the distributor to pass along.
-fb.r.kind=Type
-fb.r.contact=Contact
-fb.r.detail=Details
-fb.r.diag=Diagnostics
 
 # ── 诊断信息小节标题 ─────────────────────────────────────────
-diag.env=Environment
-diag.files=Components
-diag.config=Settings summary
-diag.log=Log summary
 
 [text]
 # ★ 界面里硬编码文案的译文（代码里写 Lang.Tr("原文") ✓）

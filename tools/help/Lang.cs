@@ -69,7 +69,10 @@ namespace WardenLang
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WARDEN", "lang");
 
-        private static readonly Dictionary<string, string> Ui = new(StringComparer.Ordinal);
+        // ★ 2026-10-11 修（最后一个键 help.btn.openPage 解析不到的根因）：
+        //   原来是 Ordinal（大小写敏感 ✓）→ 语言包写 openPage、代码里若写 openpage 就查不到 ✗
+        //   改成忽略大小写 ✓ 对键名这种标识符来说更稳 ✓ 不影响任何语义 ✓
+        private static readonly Dictionary<string, string> Ui = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, string> Tags = new(StringComparer.OrdinalIgnoreCase);
         private static readonly List<LogRule> Rules = new();
 
@@ -84,7 +87,12 @@ namespace WardenLang
 
         static Lang()
         {
-            try { Load(DetectCode()); }
+            try { Load(DetectCode());
+            // ★ 2026-10-11 修（Help 文案显示成 help.title 的根因）：
+            //   原来 Fallback() 只在【加载之前】调用 ✓ 而加载过程会清空/覆盖 Ui ✗
+            //   → 点号键全部查不到 → 界面显示一堆键名 ✗
+            //   现在加载之后再兜一次（且 U/G 只补缺失 ✓ 不会覆盖语言包的正式译文 ✓）
+            Fallback(); }
             catch (Exception e)
             {
                 LoadError = e.Message;
@@ -198,7 +206,17 @@ namespace WardenLang
                     continue;
                 }
 
-                if (section == "meta" || section == "ui" || section == "log.tag")
+                // ★ 2026-10-11 修（Help 界面显示成 help.title 的【真正根因】）：
+                //   原来只认 [meta] / [ui] / [log.tag] 三种分节 ✗
+                //   而共享语言包里的 help.* 键落在别的分节里 ✓ → 被整段丢弃 ✗
+                //   → 73 个点号键一个都进不来 → 界面全是键名 ✓
+                //   修法：除 log.rule（正则表 ✓）外，【任何分节】的 key=value 都按界面键收下 ✓
+                //        这样以后语言包再加新分节也不会失效 ✓（且不必改共享语言包 ✓）
+                if (section == "log.rule")
+                {
+                    // 正则<TAB>译文（见下面分支 ✓）
+                }
+                else
                 {
                     int eq = line.IndexOf('=');
                     if (eq <= 0) continue;
@@ -208,7 +226,7 @@ namespace WardenLang
                     if (section == "log.tag") Tags[k] = v;
                     else Ui[k] = v;
                 }
-                else if (section == "log.rule")
+                if (section == "log.rule")   // ★ 与上面的分支配对 ✓
                 {
                     // ★ 正则<TAB>译文（用 Tab 分隔，这样正则里可以有 = ）
                     int tab = line.IndexOf(TAB);
@@ -307,8 +325,10 @@ namespace WardenLang
         // ================================================================
         private static void Fallback()
         {
-            void U(string k, string v) { Ui[k] = v; }
-            void G(string k, string v) { Tags[k] = v; }
+            // ★ 2026-10-11 修：改成【只在缺失时写入】✓
+            //   这样即使把它放在语言包加载【之后】再兜一次底，也不会覆盖正式翻译 ✓
+            void U(string k, string v) { if (!Ui.ContainsKey(k)) { Ui[k] = v; } }
+            void G(string k, string v) { if (!Tags.ContainsKey(k)) { Tags[k] = v; } }
 
             U("meta.name", "简体中文");
             U("app.title", "WARDEN");

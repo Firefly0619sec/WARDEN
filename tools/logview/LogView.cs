@@ -1,5 +1,9 @@
 // ============================================================================
 //  WARDEN 日志查看器（事故后重写，2026-10-10）
+//  2026-10-11 · Beta 3 / 0.3.2：去掉 WinForms ✗ 改原生 Win32 + Native AOT ✓
+//    界面 → LogViewForm.cs（原生控件）/ LogViewWin32.cs（公共层）
+//    本文件只留【数据与算法】：数据目录解析 / 读日志 / 过滤 / 统计 / 导出报告
+//    ★ ResolveDataDir / PathOf / Reload / ContainsKey / ExportReport 的算法与文案一字未改 ✓
 // ============================================================================
 //  【和"打开日志文件夹"的区别】
 //    托盘菜单以前是拿资源管理器打开目录 ✗ → 用户还得自己翻文件、自己找重点 ✗
@@ -18,21 +22,30 @@
 // ============================================================================
 
 using System;
-using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Text;
-using System.Windows.Forms;
 
 namespace WardenLogView
 {
-    internal sealed class LogViewForm : Form
+    internal static class LogView
     {
         // ★ B3 便携版：exe 同目录有 WARDEN.portable 就用 <exe目录>\data ✓
-        private static readonly string DataDir = ResolveDataDir();
+        internal static readonly string DataDir = ResolveDataDir();
 
         private static string ResolveDataDir()
         {
+            try
+            {
+                // ★ 0.3.2 验收钩子：设了 WARDEN_LOGVIEW_DATADIR 就用它 ✓
+                //   （不设此变量的生产环境完全无影响 ✓ 验收时用它指向 %TEMP% 下的假日志 ✓
+                //     铁律：绝不允许写坏真实 %LOCALAPPDATA%\WARDEN ✓）
+                string? forced = Environment.GetEnvironmentVariable("WARDEN_LOGVIEW_DATADIR");
+                if (!string.IsNullOrEmpty(forced))
+                {
+                    return forced;
+                }
+            }
+            catch { }
             try
             {
                 string exeDir = AppContext.BaseDirectory.TrimEnd('\\');
@@ -46,7 +59,6 @@ namespace WardenLogView
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN");
         }
 
-
         /// <summary>★ 关键行的判据（用户最需要一眼看到的那些）✓</summary>
         private static readonly string[] KeyWords =
         {
@@ -54,156 +66,12 @@ namespace WardenLogView
             "拒绝", "失败", "错误", "异常", "★", "⚠", "aborted", "FAIL",
         };
 
-        private readonly ComboBox _files = new ComboBox();
-        private readonly TextBox _filter = new TextBox();
-        private readonly CheckBox _onlyKey = new CheckBox();
-        private readonly TextBox _view = new TextBox();
-        private readonly Label _stats = new Label();
-        private readonly Timer _timer = new Timer { Interval = 3000 };
-        private string _current = "";
+        /// <summary>当前选中的日志文件名（原生窗口 Reload 时写入 ✓）</summary>
+        internal static string Current = "";
 
-        public LogViewForm()
-        {
-            Text = "WARDEN 日志查看器";
-            ClientSize = new Size(900, 600);
-            StartPosition = FormStartPosition.CenterScreen;
-            Font = new Font("Microsoft YaHei UI", 9F);
+        internal static string PathOf(string name) => Path.Combine(DataDir, name);
 
-            _files.DropDownStyle = ComboBoxStyle.DropDownList;
-            _files.SetBounds(12, 12, 200, 26);
-            foreach (string n in new[] { "WARDEN.log", "EMERGENCY.log", "TAMPER.log", "setup.log" })
-            {
-                _files.Items.Add(n);
-            }
-            _files.SelectedIndex = 0;
-            _files.SelectedIndexChanged += (s, e) => Reload();
-
-            var lblFilter = new Label { Text = "过滤：", Bounds = new Rectangle(224, 16, 50, 22) };
-            _filter.SetBounds(270, 14, 260, 24);
-            _filter.TextChanged += (s, e) => Reload();
-
-            _onlyKey.Text = "只看关键行（篡改/应急/冻结/强杀/失败）";
-            _onlyKey.SetBounds(540, 16, 320, 24);
-            _onlyKey.CheckedChanged += (s, e) => Reload();
-
-            _view.Multiline = true;
-            _view.ReadOnly = true;
-            _view.ScrollBars = ScrollBars.Both;
-            _view.WordWrap = false;
-            _view.Font = new Font("Consolas", 9F);
-            _view.SetBounds(12, 48, 876, 480);
-            _view.BackColor = Color.White;
-
-            _stats.SetBounds(12, 534, 560, 22);
-            _stats.ForeColor = Color.DimGray;
-
-            var bRefresh = new Button { Text = "刷新", Bounds = new Rectangle(586, 532, 70, 28) };
-            var bFolder = new Button { Text = "打开文件夹", Bounds = new Rectangle(662, 532, 100, 28) };
-            var bReport = new Button { Text = "导出报告", Bounds = new Rectangle(768, 532, 100, 28) };
-            // ★ F5：上报证据（脱敏 + 预览 + 明文/PGP 二选一 ✓ 默认不选=不上传 ✗）
-            var bReport2 = new Button { Text = "上报证据", Bounds = new Rectangle(768, 496, 100, 28) };
-            bReport2.Click += (s, e) => EvidenceReport.Show(this);
-            Controls.Add(bReport2);
-            bRefresh.Click += (s, e) => Reload();
-            bFolder.Click += (s, e) =>
-            {
-                try { System.Diagnostics.Process.Start("explorer.exe", DataDir); } catch { }
-            };
-            bReport.Click += (s, e) => ExportReport();
-
-            Controls.Add(_files);
-            Controls.Add(lblFilter);
-            Controls.Add(_filter);
-            Controls.Add(_onlyKey);
-            Controls.Add(_view);
-            Controls.Add(_stats);
-            Controls.Add(bRefresh);
-            Controls.Add(bFolder);
-            Controls.Add(bReport);
-
-            _timer.Tick += (s, e) => { if (Visible) { Reload(); } };
-            _timer.Start();
-            Reload();
-        }
-
-        private string PathOf(string name) => Path.Combine(DataDir, name);
-
-        private void Reload()
-        {
-            string name = _files.SelectedItem?.ToString() ?? "WARDEN.log";
-            string path = PathOf(name);
-            _current = name;
-
-            if (!File.Exists(path))
-            {
-                _view.Text = "(还没有这个日志文件：" + path + ")";
-                _stats.Text = name + "：不存在";
-                return;
-            }
-
-            string[] lines;
-            try
-            {
-                lines = File.ReadAllLines(path, Encoding.UTF8);
-            }
-            catch (Exception e)
-            {
-                _view.Text = "读日志失败：" + e.Message;
-                return;
-            }
-
-            string needle = _filter.Text.Trim();
-            bool onlyKey = _onlyKey.Checked;
-            var shown = new List<string>(lines.Length);
-            foreach (string l in lines)
-            {
-                if (needle.Length > 0
-                    && l.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    continue;
-                }
-                if (onlyKey && !ContainsKey(l))
-                {
-                    continue;
-                }
-                shown.Add(l);
-            }
-
-            _view.Text = string.Join(Environment.NewLine, shown);
-
-            // ★ 统计：总行数 / 关键行数 / 前 3 个高频标签 ✓
-            int keyCount = 0;
-            var tags = new Dictionary<string, int>();
-            foreach (string l in lines)
-            {
-                if (ContainsKey(l)) { keyCount++; }
-                int a = l.IndexOf('[');
-                int b = a >= 0 ? l.IndexOf(']', a + 1) : -1;
-                if (a >= 0 && b > a)
-                {
-                    string tag = l.Substring(a + 1, Math.Min(24, b - a - 1));
-                    tags[tag] = tags.TryGetValue(tag, out int c) ? c + 1 : 1;
-                }
-            }
-            var top = new List<KeyValuePair<string, int>>(tags);
-            top.Sort((x, y) => y.Value.CompareTo(x.Value));
-            var sb = new StringBuilder();
-            sb.Append(name).Append("：共 ").Append(lines.Length).Append(" 行，关键行 ")
-              .Append(keyCount).Append(" 行，当前显示 ").Append(shown.Count).Append(" 行");
-            for (int i = 0; i < Math.Min(3, top.Count); i++)
-            {
-                sb.Append("   ").Append('[').Append(top[i].Key).Append("]×").Append(top[i].Value);
-            }
-            _stats.Text = sb.ToString();
-
-            if (shown.Count > 0)
-            {
-                _view.SelectionStart = _view.TextLength;
-                _view.ScrollToCaret();
-            }
-        }
-
-        private static bool ContainsKey(string line)
+        internal static bool ContainsKey(string line)
         {
             foreach (string k in KeyWords)
             {
@@ -216,10 +84,9 @@ namespace WardenLogView
         }
 
         /// <summary>★ B8：导出 Markdown 报告（环境 + 关键行 + 计数）✓</summary>
-        private void ExportReport()
+        internal static void ExportReport(IntPtr owner)
         {
-            string name = _current.Length > 0 ? _current : "WARDEN.log";
-            string path = PathOf(name);
+            string name = Current.Length > 0 ? Current : "WARDEN.log";
             var sb = new StringBuilder();
             sb.AppendLine("# WARDEN 日志报告");
             sb.AppendLine();
@@ -269,23 +136,20 @@ namespace WardenLogView
             try
             {
                 File.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(false));
-                MessageBox.Show(this, "报告已导出到桌面：\n\n" + Path.GetFileName(outPath),
-                                "WARDEN 日志查看器", MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
+                LogViewWin32.L("导出报告成功：" + outPath + "（" + sb.Length + " 字符，当前文件 " + name + "）");
+                LogViewWin32.Msg(owner, "报告已导出到桌面：\n\n" + Path.GetFileName(outPath),
+                                "WARDEN 日志查看器", true);
             }
             catch (Exception e)
             {
-                MessageBox.Show(this, "导出失败：" + e.Message, "WARDEN 日志查看器",
-                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                LogViewWin32.L("导出报告失败：" + e.Message);
+                LogViewWin32.Msg(owner, "导出失败：" + e.Message, "WARDEN 日志查看器", false);
             }
         }
 
-        [STAThread]
         private static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new LogViewForm());
+            LogViewForm.Run();
         }
     }
 }

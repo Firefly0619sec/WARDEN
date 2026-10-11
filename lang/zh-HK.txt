@@ -24,6 +24,66 @@ code=zh-HK
 name=繁體中文（中國香港）
 
 [ui]
+help.btn.openPage=打開發布頁
+help.openFailed=打不開瀏覽器：
+help.siblingMissing=找不到 {0}。\n\n這説明安裝不完整（正常安裝時它是必裝的）。\n請重新運行 WARDEN 安裝包修復。
+fb.detailHint=越具體越好：你做了什麼、期望什麼、實際發生了什麼
+fb.contactHint=（可選）想讓你回覆的話填一個
+fb.attachDiag=附上診斷信息（版本、系統、配置摘要、日誌摘要）
+fb.diagHint=★ 診斷信息會把你路徑裏的用户名打碼。\n★ 你點提交之前，這些內容哪裏也不去。
+fb.defaultTitle=（請簡單描述你遇到的問題）
+fb.tooLong=內容太長，GitHub 的鏈接裝不下。
+fb.tooLongAsk=已經把完整內容複製到剪貼板了。\n\n點「是」打開 GitHub 新建 issue 頁面，\n然後按 Ctrl+V 把內容粘進去。\n\n點「否」先不發。
+fb.copiedForPaste=已複製到剪貼板 —— 到 GitHub 頁面後按 Ctrl+V 粘貼
+fb.openedInBrowser=已在瀏覽器打開，提交前請再確認一遍內容
+fb.copiedLong=內容已複製到剪貼板。\n\n你可以把它發給分發者或羣裏，\n讓有 GitHub 賬號的人幫你代發。\n\n★ 開通 GitHub 賬號只要一分鐘，\n  而且以後能直接收更新通知。
+fb.noAccountHint=★ 沒有 GitHub 賬號？點「複製內容」，發給分發者幫你轉交就行。
+help.title=WARDEN 使用教程
+help.heading=WARDEN 使用教程
+help.subheading=左邊點章節，右邊看內容。看完這三節就會用了。
+help.btn.feedback=反饋問題
+help.btn.settings=打開設置界面
+help.sec.quick.title=① 三分鐘上手
+help.sec.quick.body=WARDEN 裝好之後，它在後台默默看着窗口，你不用管它。\n\n要看它在不在：看右下角托盤區（時鐘旁邊）有沒有一個號角手圖標。\n\n第一次啓動時它會問你一個問題：\n要不要先開「演習模式」？\n  · 演習模式 = 只記日誌、不動手，適合先觀察幾天\n  · 不開 = 立刻開始攔窗口\n\n裝完就能用，不需要註冊、不需要聯網。
+help.sec.tray.title=② 托盤圖標怎麼用
+help.sec.tray.body=在右下角托盤圖標上【點右鍵】，會出現這些：\n\n  打開設置界面      改規則、改門檻\n  暫停守護 / 繼續守護  臨時讓它歇一會兒（開了之後就是"繼續守護"）\n  重新加載配置      改完配置文件後點這個，不用重啓\n  查看日誌          看它到底做了什麼（全中文）\n  檢查更新          去 GitHub 看有沒有新版本\n  卸載 WARDEN       不想要了\n  退出              徹底關掉\n\n★ 雙擊托盤圖標 = 直接打開設置界面（最快）。
+help.sec.blocked.title=③ 被攔了 / 沒攔住 怎麼辦
+help.sec.blocked.body=【它太激進，攔了我正在用的東西】\n  打開設置界面 → 「保護」標籤頁\n  確認三個"防誤傷"開關都是開着的（默認就是開的）\n  還是不行 → 「名單」標籤頁，把那個程序加進白名單\n\n【彈窗還是照樣冒出來】\n  ① 打開「日誌分析」看看它在做什麼\n  ② 如果日誌裏寫着【演習模式】，説明它只在觀察沒動手\n     去設置界面關掉演習模式即可\n  ③ 如果寫着「拒絕強殺」，説明安全閘攔住了\n     這是保護機制，不是壞了\n\n【有個程序殺了又回來】\n  日誌裏會出現「守護檢測」\n  説明那個程序自己帶守護程序，WARDEN 殺它它會自己重啓\n  這種情況建議用 Geek Uninstaller 之類的工具徹底卸載它。
+help.sec.dryrun.title=④ 演習模式是什麼
+help.sec.dryrun.body=演習模式 = 只記日誌，不動手。\n\n什麼時候用：\n  · 剛裝上，想先看看它會攔哪些窗口，擔心誤傷\n  · 出了問題想留證據給開發者看\n\n怎麼開關：設置界面 → 「保護」標籤頁 → 演習模式\n\n★ 關掉它才會真的攔窗口。第一次啓動時會問你一次。\n★ 開着的時候日誌會寫 [DRYRUN]，日誌分析裏會顯示"本該執行……"。
+help.sec.rules.title=⑤ 怎麼加自己的規則
+help.sec.rules.body=設置界面 → 「規則」標籤頁 → 「新增規則」\n\n一條規則需要：\n  名稱       隨便起，寫清楚是哪個軟件，方便以後認\n  程序名     比如 qq.exe（只寫文件名，不要寫完整路徑）\n  標題關鍵詞  標題裏包含這些詞就命中，如 活動、福利、推薦\n  或 標題正則  更靈活，但要小心別寫太寬泛導致誤傷\n\n★ 規則只是"起點"，是否動手還要看綜合行為分\n  （短時間內瘋狂新建窗口、反覆搶前台、被關又回來……）\n  所以規則寫寬一點也不會亂殺 ✓
+help.sec.safety.title=⑥ 安全説明（重要）
+help.sec.safety.body=★ WARDEN 本體【完全不聯網】。\n  只有你點「檢查更新」時，更新器才會訪問 GitHub 一次。\n\n★ 安全與保護開關【默認全開】：\n  簽名閘 / 白名單禁殺 / 啓動自校驗 / 自身被改動就拉停\n  三個防誤傷開關（前台窗口不碰、含輸入框不碰、含子控件不碰）\n\n★ 有合法數字簽名的程序：默認不硬殺，最多隱藏或請求關閉\n\n★ 強制手段默認【不預先授權】：\n  遇到壓不住的窗口它會問你要不要動手，你當場同意才動一次\n  這叫"手動提權"，你始終握有決定權\n\n★ 更新包會校驗 SHA256 和數字簽名，任何一項不對都會拒絕安裝
+help.sec.update.title=⑦ 怎麼更新
+help.sec.update.body=托盤圖標右鍵 → 「檢查更新」\n\n兩條通道：\n  正式版    穩定，推薦\n  Beta 版   嚐鮮，可能有 bug（想幫忙測試就選這個）\n\n★ 連不上 GitHub 怎麼辦：\n  程序不會卡死，會告訴你怎麼回事，並給出替代方案\n  （打開發布頁用瀏覽器下載 / 檢查代理 / 換個時間再試）\n\n★ 從別處拿到安裝包時，務必右鍵 → 屬性 → 數字簽名，\n  確認簽名者是 Firefly0619sec 再運行
+help.sec.uninstall.title=⑧ 怎麼卸載
+help.sec.uninstall.body=三種方式，任選一種：\n\n  ① 控制面板 → 程序和功能 → WARDEN → 卸載\n  ② 開始菜單 → WARDEN 文件夾 → 卸載\n  ③ 托盤圖標右鍵 → 卸載 WARDEN\n\n卸載時：\n  · 可以勾選"保留配置與日誌"\n  · 程序目錄會在卸載窗口關閉後才消失（正常現象）\n  · 最後會告訴你"數字簽名證書沒有刪"，以及怎麼手動刪
+help.sec.faq.title=⑨ 常見問題
+help.sec.faq.body=【托盤圖標不見了】\n  可能被摺疊了：點托盤區的向上箭頭 ^ 找找\n  或者 WARDEN 已經退出了：看任務管理器有沒有 WARDEN.exe\n\n【設置界面打不開】\n  從托盤圖標右鍵 → 打開設置界面\n  還不行就重新運行安裝包（會修復缺失的組件）\n\n【改了配置文件沒生效】\n  托盤右鍵 → 重新加載配置\n\n【殺毒軟件報警】\n  WARDEN 會讀窗口信息、結束程序，行為上和惡意軟件有相似處\n  這是誤報。可以把這個目錄加進殺軟白名單：\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【還是解決不了】\n  點下面的「反饋問題」，填完直接提交到 GitHub\n  沒有 GitHub 賬號也能用：一鍵複製，發給分發者幫你轉交
+fb.title=反饋問題
+fb.heading=反饋問題 / 提建議
+fb.kind=類型：
+fb.kind.bug=問題（有東西壞了）
+fb.kind.idea=建議（想要新功能）
+fb.kind.other=其他
+fb.subject=標題：
+fb.detail=詳細描述：
+fb.contact=聯繫方式：
+fb.preview=提交內容預覽
+fb.btn.github=在 GitHub 上提交
+fb.btn.copy=複製內容
+fb.btn.save=存成文件
+fb.copied=已複製到剪貼板
+fb.saved=已保存到：{0}
+fb.r.kind=類型
+fb.r.contact=聯繫方式
+fb.r.detail=詳細描述
+fb.r.diag=診斷信息
+diag.env=環境
+diag.files=組件
+diag.config=配置摘要
+diag.log=日誌摘要
 app.title=WARDEN
 app.subtitle=窗口行為攔截工具
 common.ok=確定
@@ -201,79 +261,19 @@ ERROR=(啓動信息)
 ^\[ERROR\]\s*(.*)$	★ 出错了：{1}
 
 # ── 帮助中心（教程页）──────────────────────────────────────────
-help.title=WARDEN 使用教程
-help.heading=WARDEN 使用教程
-help.subheading=左邊點章節，右邊看內容。看完這三節就會用了。
-help.btn.feedback=反饋問題
-help.btn.openPage=打開發布頁
-help.btn.settings=打開設置界面
-help.openFailed=打不開瀏覽器：
-help.siblingMissing=找不到 {0}。\n\n這説明安裝不完整（正常安裝時它是必裝的）。\n請重新運行 WARDEN 安裝包修復。
 
-help.sec.quick.title=① 三分鐘上手
-help.sec.quick.body=WARDEN 裝好之後，它在後台默默看着窗口，你不用管它。\n\n要看它在不在：看右下角托盤區（時鐘旁邊）有沒有一個號角手圖標。\n\n第一次啓動時它會問你一個問題：\n要不要先開「演習模式」？\n  · 演習模式 = 只記日誌、不動手，適合先觀察幾天\n  · 不開 = 立刻開始攔窗口\n\n裝完就能用，不需要註冊、不需要聯網。
 
-help.sec.tray.title=② 托盤圖標怎麼用
-help.sec.tray.body=在右下角托盤圖標上【點右鍵】，會出現這些：\n\n  打開設置界面      改規則、改門檻\n  暫停守護 / 繼續守護  臨時讓它歇一會兒（開了之後就是"繼續守護"）\n  重新加載配置      改完配置文件後點這個，不用重啓\n  查看日誌          看它到底做了什麼（全中文）\n  檢查更新          去 GitHub 看有沒有新版本\n  卸載 WARDEN       不想要了\n  退出              徹底關掉\n\n★ 雙擊托盤圖標 = 直接打開設置界面（最快）。
 
-help.sec.blocked.title=③ 被攔了 / 沒攔住 怎麼辦
-help.sec.blocked.body=【它太激進，攔了我正在用的東西】\n  打開設置界面 → 「保護」標籤頁\n  確認三個"防誤傷"開關都是開着的（默認就是開的）\n  還是不行 → 「名單」標籤頁，把那個程序加進白名單\n\n【彈窗還是照樣冒出來】\n  ① 打開「日誌分析」看看它在做什麼\n  ② 如果日誌裏寫着【演習模式】，説明它只在觀察沒動手\n     去設置界面關掉演習模式即可\n  ③ 如果寫着「拒絕強殺」，説明安全閘攔住了\n     這是保護機制，不是壞了\n\n【有個程序殺了又回來】\n  日誌裏會出現「守護檢測」\n  説明那個程序自己帶守護程序，WARDEN 殺它它會自己重啓\n  這種情況建議用 Geek Uninstaller 之類的工具徹底卸載它。
 
-help.sec.dryrun.title=④ 演習模式是什麼
-help.sec.dryrun.body=演習模式 = 只記日誌，不動手。\n\n什麼時候用：\n  · 剛裝上，想先看看它會攔哪些窗口，擔心誤傷\n  · 出了問題想留證據給開發者看\n\n怎麼開關：設置界面 → 「保護」標籤頁 → 演習模式\n\n★ 關掉它才會真的攔窗口。第一次啓動時會問你一次。\n★ 開着的時候日誌會寫 [DRYRUN]，日誌分析裏會顯示"本該執行……"。
 
-help.sec.rules.title=⑤ 怎麼加自己的規則
-help.sec.rules.body=設置界面 → 「規則」標籤頁 → 「新增規則」\n\n一條規則需要：\n  名稱       隨便起，寫清楚是哪個軟件，方便以後認\n  程序名     比如 qq.exe（只寫文件名，不要寫完整路徑）\n  標題關鍵詞  標題裏包含這些詞就命中，如 活動、福利、推薦\n  或 標題正則  更靈活，但要小心別寫太寬泛導致誤傷\n\n★ 規則只是"起點"，是否動手還要看綜合行為分\n  （短時間內瘋狂新建窗口、反覆搶前台、被關又回來……）\n  所以規則寫寬一點也不會亂殺 ✓
 
-help.sec.safety.title=⑥ 安全説明（重要）
-help.sec.safety.body=★ WARDEN 本體【完全不聯網】。\n  只有你點「檢查更新」時，更新器才會訪問 GitHub 一次。\n\n★ 安全與保護開關【默認全開】：\n  簽名閘 / 白名單禁殺 / 啓動自校驗 / 自身被改動就拉停\n  三個防誤傷開關（前台窗口不碰、含輸入框不碰、含子控件不碰）\n\n★ 有合法數字簽名的程序：默認不硬殺，最多隱藏或請求關閉\n\n★ 強制手段默認【不預先授權】：\n  遇到壓不住的窗口它會問你要不要動手，你當場同意才動一次\n  這叫"手動提權"，你始終握有決定權\n\n★ 更新包會校驗 SHA256 和數字簽名，任何一項不對都會拒絕安裝
 
-help.sec.update.title=⑦ 怎麼更新
-help.sec.update.body=托盤圖標右鍵 → 「檢查更新」\n\n兩條通道：\n  正式版    穩定，推薦\n  Beta 版   嚐鮮，可能有 bug（想幫忙測試就選這個）\n\n★ 連不上 GitHub 怎麼辦：\n  程序不會卡死，會告訴你怎麼回事，並給出替代方案\n  （打開發布頁用瀏覽器下載 / 檢查代理 / 換個時間再試）\n\n★ 從別處拿到安裝包時，務必右鍵 → 屬性 → 數字簽名，\n  確認簽名者是 Firefly0619sec 再運行
 
-help.sec.uninstall.title=⑧ 怎麼卸載
-help.sec.uninstall.body=三種方式，任選一種：\n\n  ① 控制面板 → 程序和功能 → WARDEN → 卸載\n  ② 開始菜單 → WARDEN 文件夾 → 卸載\n  ③ 托盤圖標右鍵 → 卸載 WARDEN\n\n卸載時：\n  · 可以勾選"保留配置與日誌"\n  · 程序目錄會在卸載窗口關閉後才消失（正常現象）\n  · 最後會告訴你"數字簽名證書沒有刪"，以及怎麼手動刪
 
-help.sec.faq.title=⑨ 常見問題
-help.sec.faq.body=【托盤圖標不見了】\n  可能被摺疊了：點托盤區的向上箭頭 ^ 找找\n  或者 WARDEN 已經退出了：看任務管理器有沒有 WARDEN.exe\n\n【設置界面打不開】\n  從托盤圖標右鍵 → 打開設置界面\n  還不行就重新運行安裝包（會修復缺失的組件）\n\n【改了配置文件沒生效】\n  托盤右鍵 → 重新加載配置\n\n【殺毒軟件報警】\n  WARDEN 會讀窗口信息、結束程序，行為上和惡意軟件有相似處\n  這是誤報。可以把這個目錄加進殺軟白名單：\n  %LOCALAPPDATA%\\Programs\\WARDEN\n\n【還是解決不了】\n  點下面的「反饋問題」，填完直接提交到 GitHub\n  沒有 GitHub 賬號也能用：一鍵複製，發給分發者幫你轉交
 
 # ── 帮助中心（反馈页）──────────────────────────────────────────
-fb.title=反饋問題
-fb.heading=反饋問題 / 提建議
-fb.kind=類型：
-fb.kind.bug=問題（有東西壞了）
-fb.kind.idea=建議（想要新功能）
-fb.kind.other=其他
-fb.subject=標題：
-fb.detail=詳細描述：
-fb.detailHint=越具體越好：你做了什麼、期望什麼、實際發生了什麼
-fb.contact=聯繫方式：
-fb.contactHint=（可選）想讓你回覆的話填一個
-fb.attachDiag=附上診斷信息（版本、系統、配置摘要、日誌摘要）
-fb.diagHint=★ 診斷信息會把你路徑裏的用户名打碼。\n★ 你點提交之前，這些內容哪裏也不去。
-fb.preview=提交內容預覽
-fb.btn.github=在 GitHub 上提交
-fb.btn.copy=複製內容
-fb.btn.save=存成文件
-fb.defaultTitle=（請簡單描述你遇到的問題）
-fb.tooLong=內容太長，GitHub 的鏈接裝不下。
-fb.tooLongAsk=已經把完整內容複製到剪貼板了。\n\n點「是」打開 GitHub 新建 issue 頁面，\n然後按 Ctrl+V 把內容粘進去。\n\n點「否」先不發。
-fb.copiedForPaste=已複製到剪貼板 —— 到 GitHub 頁面後按 Ctrl+V 粘貼
-fb.openedInBrowser=已在瀏覽器打開，提交前請再確認一遍內容
-fb.copied=已複製到剪貼板
-fb.copiedLong=內容已複製到剪貼板。\n\n你可以把它發給分發者或羣裏，\n讓有 GitHub 賬號的人幫你代發。\n\n★ 開通 GitHub 賬號只要一分鐘，\n  而且以後能直接收更新通知。
-fb.saved=已保存到：{0}
-fb.noAccountHint=★ 沒有 GitHub 賬號？點「複製內容」，發給分發者幫你轉交就行。
-fb.r.kind=類型
-fb.r.contact=聯繫方式
-fb.r.detail=詳細描述
-fb.r.diag=診斷信息
 
 # ── 诊断信息小节标题 ─────────────────────────────────────────
-diag.env=環境
-diag.files=組件
-diag.config=配置摘要
-diag.log=日誌摘要
 
 [text]
 # ★ 硬编码文案的原文（作为键）；其它语言在各自文件里填译文

@@ -18,13 +18,19 @@
 //    PGP ：用作者公钥加密后再复制（只有作者能读 ✓ 适合含敏感信息的日志 ✓）
 // ============================================================================
 
+//  2026-10-11 · Beta 3 / 0.3.2：去掉 WinForms ✗ 改原生 Win32 + Native AOT ✓
+//    · 24 处 MessageBox.Show → 原生 MessageBoxW（★ YesNo 拿返回值 / 这里全是 OK 型 ✓）
+//    · SaveFileDialog → comdlg32 GetSaveFileNameW ✓
+//    · Show(IWin32Window) → Show(IntPtr owner) ✓
+//    · Clipboard.SetText → 原生剪贴板 ✓ Application.ProductVersion → 原生读版本资源 ✓
+//    · 窗口本体 → EvidenceForm.cs（原生控件 ✓ 默认不上传 ✗ 明文/PGP 二选一 ✓ 预览可见 ✓）
+//    · ★ Mask / BuildBody / Encrypt 三个算法与文案一字未改 ✓
+
 using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 
 namespace WardenLogView
 {
@@ -36,8 +42,15 @@ namespace WardenLogView
         private static readonly string DataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN");
 
-        private const string IssueUrl =
+        internal const string IssueUrl =
             "https://github.com/Firefly0619sec/WARDEN/issues/new";
+
+        /// <summary>原生窗口用来取两版正文（明文 / PGP ✓ 都是已脱敏的同一个 BuildBody ✓）</summary>
+        internal static string PlainBody() => BuildBody(false);
+        internal static string PgpBody() => BuildBody(true);
+
+        /// <summary>原生窗口调用的 PGP 加密入口（Encrypt 本体原样保留 ✓）</summary>
+        internal static string EncryptForUi(string text, IntPtr owner) => Encrypt(text, owner);
 
         /// <summary>
         /// ★ 脱敏：用户名 / 手机号 / 邮箱打码 ✓
@@ -85,7 +98,7 @@ namespace WardenLogView
             sb.AppendLine();
             sb.AppendLine("### 环境");
             sb.AppendLine();
-            sb.AppendLine("* 版本：" + System.Windows.Forms.Application.ProductVersion);
+            sb.AppendLine("* 版本：" + LogViewWin32.ProductVersion());
             sb.AppendLine("* 系统：" + Mask(Environment.OSVersion.VersionString));
             sb.AppendLine("* 程序路径：" + Mask(AppContext.BaseDirectory));
             sb.AppendLine("* 数据目录：" + Mask(DataDir));
@@ -144,167 +157,27 @@ namespace WardenLogView
             return sb.ToString();
         }
 
-        /// <summary>★ 打开上报窗口（预览 + 选传输方式 + 三个出口 ✓）</summary>
-        public static void Show(IWin32Window owner)
+        /// <summary>★ 打开上报窗口（预览 + 选传输方式 + 三个出口 ✓）
+        ///   owner 改成原生窗口句柄 ✓（不再依赖 WinForms 的 IWin32Window ✓）
+        ///   窗口本体在 EvidenceForm.cs（原生控件 ✓ 与旧版同一套布局 ✓）</summary>
+        public static void Show(IntPtr owner)
         {
-            string plain = BuildBody(false);
-            string pgpBody = BuildBody(true);
-
-            using var f = new Form
+            try
             {
-                Text = "上报证据 / 反馈问题 —— WARDEN",
-                ClientSize = new Size(880, 660),
-                StartPosition = FormStartPosition.CenterParent,
-                Font = new Font("Microsoft YaHei UI", 9F),
-                MinimumSize = new Size(700, 500),
-            };
-
-            var tip = new Label
+                EvidenceForm.Show(owner);
+            }
+            catch (Exception ex)
             {
-                Dock = DockStyle.Top,
-                Height = 74,
-                Padding = new Padding(12, 8, 12, 8),
-                Text = "★ 下面显示的就是【将要发出去的全部内容】✓ 请先看一眼 ✓\n"
-                     + "★ 用户名 / 邮箱 / 手机号 / 机器名已经打码 ✓\n"
-                     + "★ 传输方式【默认不选】—— 你不选，就什么也不会发出去 ✗",
-            };
-
-            var view = new TextBox
-            {
-                Multiline = true,
-                ReadOnly = true,
-                ScrollBars = ScrollBars.Both,
-                WordWrap = false,
-                Font = new Font("Consolas", 8.5F),
-                Dock = DockStyle.Fill,
-                Text = plain,
-            };
-
-            var bottom = new Panel { Dock = DockStyle.Bottom, Height = 132 };
-            var rbPlain = new RadioButton
-            {
-                Text = "明文（贴到 GitHub 新建 issue ✓ 内容公开，任何人可见）",
-                Location = new Point(12, 6),
-                Size = new Size(600, 24),
-            };
-            var rbPgp = new RadioButton
-            {
-                Text = "PGP 加密（用作者公钥加密 ✓ 只有作者能读 ✓ 适合含敏感信息的日志）",
-                Location = new Point(12, 32),
-                Size = new Size(700, 24),
-            };
-            var note = new Label
-            {
-                Location = new Point(12, 60),
-                Size = new Size(840, 20),
-                ForeColor = Color.DimGray,
-                Text = "选择传输方式后，下面的按钮才会可用（默认两个都没选 = 不上传 ✓）",
-            };
-            var bCopy = new Button { Text = "复制内容", Location = new Point(12, 88), Size = new Size(110, 32), Enabled = false };
-            var bSave = new Button { Text = "存成文件", Location = new Point(132, 88), Size = new Size(110, 32), Enabled = false };
-            var bIssue = new Button { Text = "在 GitHub 上打开", Location = new Point(252, 88), Size = new Size(150, 32), Enabled = false };
-            var bClose = new Button { Text = "关闭", Location = new Point(770, 88), Size = new Size(90, 32) };
-
-            string Current() => rbPgp.Checked ? pgpBody : plain;
-
-            rbPlain.CheckedChanged += (s, e) =>
-            {
-                view.Text = Current();
-                bCopy.Enabled = bSave.Enabled = bIssue.Enabled = true;
-            };
-            rbPgp.CheckedChanged += (s, e) =>
-            {
-                view.Text = Current();
-                bCopy.Enabled = bSave.Enabled = bIssue.Enabled = true;
-            };
-
-            bCopy.Click += (s, e) =>
-            {
-                try
-                {
-                    Clipboard.SetText(rbPgp.Checked ? Encrypt(Current()) : Current());
-                    MessageBox.Show(f, rbPgp.Checked
-                            ? "已加密并复制 ✓ 贴到 GitHub issue 里，或直接发给作者 ✓"
-                            : "已复制 ✓ 到 GitHub 页面按 Ctrl+V 粘贴 ✓",
-                        "上报证据", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(f, "复制失败：" + ex.Message, "上报证据",
-                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            };
-            bSave.Click += (s, e) =>
-            {
-                using var d = new SaveFileDialog
-                {
-                    FileName = (rbPgp.Checked ? "WARDEN-证据-加密-" : "WARDEN-证据-")
-                               + DateTime.Now.ToString("yyyyMMdd-HHmmss")
-                               + (rbPgp.Checked ? ".asc" : ".md"),
-                    Filter = rbPgp.Checked ? "PGP 加密文件|*.asc" : "Markdown|*.md",
-                };
-                if (d.ShowDialog(f) != DialogResult.OK)
-                {
-                    return;
-                }
-                try
-                {
-                    File.WriteAllText(d.FileName,
-                        rbPgp.Checked ? Encrypt(Current()) : Current(),
-                        new UTF8Encoding(false));
-                    MessageBox.Show(f, "已保存：\n" + d.FileName, "上报证据",
-                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(f, "保存失败：" + ex.Message, "上报证据",
-                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            };
-            bIssue.Click += (s, e) =>
-            {
-                if (rbPgp.Checked)
-                {
-                    Clipboard.SetText(Encrypt(Current()));
-                    MessageBox.Show(f,
-                        "PGP 加密内容已复制 ✓\n\n"
-                        + "接下来：在打开的页面里 Ctrl+V 粘贴 ✓\n"
-                        + "（加密内容给作者看即可，公开也没关系 ✓）",
-                        "上报证据", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    Clipboard.SetText(Current());
-                }
-                try { Process.Start(new ProcessStartInfo(IssueUrl) { UseShellExecute = true }); }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(f, "打不开浏览器：" + ex.Message + "\n\n"
-                        + "内容已复制，你可以自己打开：\n" + IssueUrl,
-                        "上报证据", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            };
-            bClose.Click += (s, e) => f.Close();
-
-            bottom.Controls.Add(rbPlain);
-            bottom.Controls.Add(rbPgp);
-            bottom.Controls.Add(note);
-            bottom.Controls.Add(bCopy);
-            bottom.Controls.Add(bSave);
-            bottom.Controls.Add(bIssue);
-            bottom.Controls.Add(bClose);
-
-            f.Controls.Add(view);
-            f.Controls.Add(bottom);
-            f.Controls.Add(tip);
-            f.ShowDialog(owner);
+                LogViewWin32.L("★ 上报证据窗口异常：" + ex.GetType().Name + " " + ex.Message);
+                LogViewWin32.Msg(owner, "打开上报窗口失败：" + ex.Message, "上报证据", false);
+            }
         }
 
         /// <summary>
         /// ★ PGP 加密（调系统的 gpg ✓）
         ///   没装 gpg → 明确告诉用户"改选明文或用文件下载"✗ 不静默降级 ✗
         /// </summary>
-        private static string Encrypt(string text)
+        private static string Encrypt(string text, IntPtr owner)
         {
             string tmpIn = Path.Combine(Path.GetTempPath(), "warden-report-" + Guid.NewGuid().ToString("N") + ".md");
             File.WriteAllText(tmpIn, text, new UTF8Encoding(false));
@@ -333,21 +206,30 @@ namespace WardenLogView
                 try { File.Delete(tmpIn); } catch { }
                 if (p.ExitCode != 0 || outp.Length == 0)
                 {
-                    MessageBox.Show("PGP 加密失败：" + err + "\n\n"
+                    LogViewWin32.L("PGP 加密失败：exit=" + p.ExitCode + " err=" + Head(err));
+                    LogViewWin32.Msg(owner, "PGP 加密失败：" + err + "\n\n"
                         + "可能原因：没装 GnuPG / 没有作者公钥（" + PgpKeyId + "）\n"
                         + "→ 可以先选【明文】提交，或把 WARDEN.log 手动发给我 ✓",
-                        "上报证据", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        "上报证据", false);
                     return text;   // 返回明文（用户已在预览里看过 ✓）
                 }
+                LogViewWin32.L("PGP 加密成功：" + outp.Length + " 字符 ✓");
                 return outp;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("调用 gpg 失败：" + ex.Message + "\n\n"
-                    + "→ 请改选【明文】提交 ✓", "上报证据",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                LogViewWin32.L("调用 gpg 失败：" + ex.GetType().Name + " " + ex.Message);
+                LogViewWin32.Msg(owner, "调用 gpg 失败：" + ex.Message + "\n\n"
+                    + "→ 请改选【明文】提交 ✓", "上报证据", false);
                 return text;
             }
+        }
+
+        private static string Head(string s)
+        {
+            int i = s.IndexOf('\n');
+            string t = (i < 0 ? s : s.Substring(0, i)).Trim();
+            return t.Length > 80 ? t.Substring(0, 80) + "…" : t;
         }
     }
 }

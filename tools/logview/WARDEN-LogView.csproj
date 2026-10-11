@@ -2,13 +2,13 @@
 
   <!-- ==========================================================================
        WARDEN 日志查看器（事故后重写，2026-10-10）
-       · WinForms：分类看日志、只看关键行、一键导出 Markdown 报告（B8）✓
-       · 自包含单文件 + 压缩
+       · 分类看日志、只看关键行、一键导出 Markdown 报告（B8）、上报证据（F5）✓
+       · 2026-10-11 · Beta 3 / 0.3.2：去 WinForms → 原生 Win32 + Native AOT ✓
+         （WinForms 不支持 AOT ✗ 自包含单文件 49.25 MB ✗ → AOT 约 3 MB ✓ 无需装 .NET ✓）
        ========================================================================== -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>LogView</AssemblyName>
@@ -18,10 +18,13 @@
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <Version>0.3.2</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
+
+    <!-- ★ 原生 AOT（WinForms 不支持 ✗ 所以界面全部换成原生 Win32 控件 ✓） -->
+    <PublishAot>true</PublishAot>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <DebugType>none</DebugType>
   </PropertyGroup>
 

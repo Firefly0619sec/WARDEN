@@ -14,26 +14,37 @@
            → 改成语言包驱动的结构化教程：
                正文全在语言包里，翻译者改语言包就能出外语版
                零第三方依赖，也不用操心协议 ✓
+
+       【★★ Beta 3（0.3.3）：WinForms → 原生 Win32 + Native AOT】
+           线上缺陷（0.2.5 / 0.2.6）：WinForms 开不了 AOT，只能自包含发布
+             publish 目录 219 个文件 / 108.8 MB，而载荷里只打了 Help.exe（174 KB 空壳）
+             → 装完之后 Help 打不开 ✗
+           现在界面全在 HelpWin32.cs（原生 Win32/GDI ✓ 可 AOT ✓）
+             界面与文案与旧版逐项一致（章节、坐标、每段文字都没动 ✓）
+             单个 exe 约 1 MB，单独一个文件也能跑 ✓
        ======================================================================== -->
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Help</AssemblyName>
     <RootNamespace>WardenHelp</RootNamespace>
-    <Version>0.2.6</Version>
+    <Version>0.3.3</Version>
     <Product>WARDEN 帮助中心</Product>
     <Authors>Firefly0619sec</Authors>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
 
-    <PublishAot>false</PublishAot>
-    <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- ★ 2026-10-11：界面已改原生 Win32/GDI ✓ 开 AOT 后 108.8MB / 219 文件 → 约 1MB / 1 文件 ✓ -->
+    <PublishAot>true</PublishAot>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <PublishSingleFile>false</PublishSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
+    <!-- ★ PublishTrimmed 不能写 false：AOT 会自动隐含裁剪 ✓ 写了会直接报错 ✓ -->
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <ApplicationIcon>icon.ico</ApplicationIcon>
