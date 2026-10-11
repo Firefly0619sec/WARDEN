@@ -12,7 +12,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>WARDEN-Uninstaller</AssemblyName>
+    <AssemblyName>Uninstaller</AssemblyName>
     <RootNamespace>WardenUninstall</RootNamespace>
     <AssemblyTitle>WARDEN 卸载程序</AssemblyTitle>
     <Product>WARDEN</Product>

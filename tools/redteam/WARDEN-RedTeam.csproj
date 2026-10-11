@@ -12,7 +12,7 @@
     <PublishAot>true</PublishAot>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <AssemblyName>WARDEN-RedTeam</AssemblyName>
+    <AssemblyName>RedTeam</AssemblyName>
     <RootNamespace>WardenRedTeam</RootNamespace>
     <AssemblyTitle>WARDEN 红队自测工具</AssemblyTitle>
     <Product>WARDEN</Product>

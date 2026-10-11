@@ -76,7 +76,7 @@ Start-Sleep -Seconds 3
 $results += Sample '空闲（无弹窗）' $Seconds
 
 # 弹窗轰炸
-$rt = Join-Path $inst 'WARDEN-RedTeam.exe'
+$rt = Join-Path $inst 'RedTeam.exe'
 if (Test-Path $rt) {
     $rtp = Start-Process $rt -ArgumentList ([string]($Seconds + 6)) -WorkingDirectory $inst -PassThru
     Start-Sleep -Seconds 3

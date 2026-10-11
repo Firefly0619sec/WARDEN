@@ -13,7 +13,7 @@
 //   ④ 全程写日志（setup.log 同一处），卸载失败也要留下证据 ✓
 //
 //  命令行：
-//    WARDEN-Uninstaller.exe [--silent] [--keep-config] [--purge-data]
+//    Uninstaller.exe [--silent] [--keep-config] [--purge-data]
 //    --silent      不弹界面直接卸（自动化测试用）
 //    --keep-config 保留数据（默认行为；显式写出来便于脚本阅读）
 //    --purge-data  连数据目录一起删（危险，需二次确认；静默下必须显式给）

@@ -232,13 +232,13 @@ Notepad or add a new language without recompiling. See
 
 | Tool | Purpose |
 | --- | --- |
-| `WARDEN-Settings.exe` | The settings window |
-| `WARDEN-LogView.exe` | Log viewer with a one-click Markdown report |
-| `WARDEN-Updater.exe` | Applies an offline update package, verifying its hash and saving a rollback backup |
-| `WARDEN-Uninstaller.exe` | Uninstall; keeps your settings and logs unless you tick the box |
-| `WARDEN-Help.exe` | Offline help and the feedback form |
+| `Settings.exe` | The settings window |
+| `LogView.exe` | Log viewer with a one-click Markdown report |
+| `Updater.exe` | Applies an offline update package, verifying its hash and saving a rollback backup |
+| `Uninstaller.exe` | Uninstall; keeps your settings and logs unless you tick the box |
+| `Help.exe` | Offline help and the feedback form |
 | `warden-cli.exe` | `status` / `tail` / `stop` / `rules` / `report` for scripts and remote troubleshooting |
-| `WARDEN-RedTeam.exe` | Optional component: opens a batch of "unclosable" windows so you can watch WARDEN work |
+| `RedTeam.exe` | Optional component: opens a batch of "unclosable" windows so you can watch WARDEN work |
 
 ## Command line
 

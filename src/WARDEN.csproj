@@ -49,7 +49,7 @@
     <Description>窗口行为拦截工具 —— 依据窗口行为特征识别并处置干扰性弹窗</Description>
 
     <!-- ★★ 应用图标：任务栏、exe 文件属性、托盘都用它 -->
-    <ApplicationIcon>WARDEN.ico</ApplicationIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- ============================================================
@@ -60,15 +60,15 @@
          但托盘图标 Shell_NotifyIcon 需要从【文件路径】加载 ✗
          （要从资源里加载得用 LoadIcon + 资源 ID，AOT 下更麻烦 ✗）
 
-       → 所以让 WARDEN.ico 跟着 exe 一起被复制出去 ✓
-         程序运行时用 Path.Combine(程序目录, "WARDEN.ico") 读它 ✓
+       → 所以让 icon.ico 跟着 exe 一起被复制出去 ✓
+         程序运行时用 Path.Combine(程序目录, "icon.ico") 读它 ✓
 
        ★ 踩过的坑：没加这一段的话，编译能过、程序能跑，
          但托盘图标会【静默地用系统默认图标】✗
          —— 看起来像"图标设计白做了"✗
        ============================================================ -->
   <ItemGroup>
-    <Content Include="WARDEN.ico">
+    <Content Include="icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

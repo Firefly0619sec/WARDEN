@@ -12,7 +12,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>WARDEN-Updater</AssemblyName>
+    <AssemblyName>Updater</AssemblyName>
     <RootNamespace>WardenUpdater</RootNamespace>
     <AssemblyTitle>WARDEN 更新程序</AssemblyTitle>
     <Product>WARDEN</Product>

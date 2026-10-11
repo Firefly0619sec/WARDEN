@@ -284,7 +284,7 @@ cd tools\settings
 dotnet publish -c Release
 ```
 
-产物：`tools\settings\bin\Release\net10.0-windows\win-x64\WARDEN-Settings.exe`
+产物：`tools\settings\bin\Release\net10.0-windows\win-x64\Settings.exe`
 
 ### 给产物签名（可选）
 
@@ -311,7 +311,7 @@ powershell -ExecutionPolicy Bypass -File <tools>\sign_files.ps1 -Path <文件> -
 
 ### 打开设置界面
 
-双击 `WARDEN-Settings.exe`。它是独立窗口，不依赖 PowerShell 或控制台。
+双击 `Settings.exe`。它是独立窗口，不依赖 PowerShell 或控制台。
 
 界面分六个标签页：
 
@@ -394,8 +394,8 @@ WARDEN/
 │   └── Consent.cs               两段式授权弹窗（TaskDialogIndirect）
 └── tools/
     └── settings/                设置界面（独立 exe，WinForms）
-        ├── WARDEN-Settings.csproj
-        └── WARDEN-Settings.cs
+        ├── Settings.csproj
+        └── Settings.cs
 ```
 
 ### 几处值得说明的设计取舍

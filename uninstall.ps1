@@ -37,7 +37,7 @@ Head 'WARDEN 卸载'
 # ---------------------------------------------------------------- 1. 停掉进程
 Write-Host ''
 Write-Host '[1] 停止正在运行的 WARDEN'
-$procs = Get-Process -Name 'WARDEN', 'WARDEN-Settings' -ErrorAction SilentlyContinue
+$procs = Get-Process -Name 'WARDEN', 'Settings' -ErrorAction SilentlyContinue
 if ($procs) {
     # ★ 先让它优雅退出（写 .stop 文件），退不掉再强制 ✗
     if (Test-Path $toolDir) {

@@ -11,7 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>WARDEN-LogView</AssemblyName>
+    <AssemblyName>LogView</AssemblyName>
     <RootNamespace>WardenLogView</RootNamespace>
     <AssemblyTitle>WARDEN 日志查看器</AssemblyTitle>
     <Product>WARDEN</Product>

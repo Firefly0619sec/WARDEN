@@ -26,7 +26,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>WARDEN-Settings</AssemblyName>
+    <AssemblyName>Settings</AssemblyName>
     <RootNamespace>WardenSettings</RootNamespace>
     <Version>0.2.4</Version>
     <Product>WARDEN 设置工具</Product>

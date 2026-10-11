@@ -22,7 +22,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>WARDEN-Help</AssemblyName>
+    <AssemblyName>Help</AssemblyName>
     <RootNamespace>WardenHelp</RootNamespace>
     <Version>0.2.4</Version>
     <Product>WARDEN 帮助中心</Product>
@@ -36,11 +36,11 @@
     <PublishTrimmed>false</PublishTrimmed>
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
-    <ApplicationIcon>WARDEN.ico</ApplicationIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="WARDEN.ico">
+    <Content Include="icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

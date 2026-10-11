@@ -106,7 +106,7 @@ jobs:
         shell: pwsh
         run: |
           $dir = "tools\settings\bin\Release"
-          $exe = Get-ChildItem $dir -Recurse -Filter 'WARDEN-Settings.exe' |
+          $exe = Get-ChildItem $dir -Recurse -Filter 'Settings.exe' |
                  Select-Object -First 1
           if (-not $exe) {
             Write-Host "★ 找不到设置界面产物" -ForegroundColor Red
@@ -141,7 +141,7 @@ jobs:
           name: WARDEN-${{ github.sha }}
           path: |
             src/bin/Release/net10.0-windows/win-x64/publish/WARDEN.exe
-            tools/settings/bin/Release/**/WARDEN-Settings.exe
+            tools/settings/bin/Release/**/Settings.exe
           # ★ 未签名的产物只保留 7 天 ✓
           #   正式发布要走签名流程 ✗
           retention-days: 7

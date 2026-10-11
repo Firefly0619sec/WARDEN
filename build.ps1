@@ -176,7 +176,7 @@ else {
 #
 #     编译产物在两个不同的地方：
 #       src\bin\...\publish\WARDEN.exe             ← 主程序
-#       tools\settings\bin\...\WARDEN-Settings.exe ← 设置界面
+#       tools\settings\bin\...\Settings.exe ← 设置界面
 #
 #     而主程序的托盘菜单里"打开设置界面"是去【自己所在目录】找 ✗
 #     → 找不到 → 只能退而打开文件资源管理器 ✗
@@ -193,10 +193,10 @@ New-Item -ItemType Directory -Path $dist -Force | Out-Null
 
 # ① 主程序 + 图标
 if (Test-Path $mainExe) { Copy-Item $mainExe $dist -Force }
-$icoSrc = Join-Path $srcDir 'WARDEN.ico'
+$icoSrc = Join-Path $srcDir 'icon.ico'
 if (Test-Path $icoSrc) { Copy-Item $icoSrc $dist -Force }
   # ★ 暂停/紧急两种状态的图标是运行时按【文件路径】加载的 ✗ 必须一起进 dist ✓
-  foreach ($extra in @('WARDEN.ico', 'WARDEN-paused.ico', 'WARDEN-emergency.ico')) {
+  foreach ($extra in @('icon.ico', 'icon-paused.ico', 'icon-emergency.ico')) {
       $p2 = Join-Path $PSScriptRoot $extra
       if (Test-Path $p2) { Copy-Item $p2 $dist -Force }
   }
@@ -205,19 +205,19 @@ if (Test-Path $icoSrc) { Copy-Item $icoSrc $dist -Force }
 #
 # ★★★ 这里踩过一个大坑（2026-10-10）：
 #
-#     bin\Release 下【有两个】WARDEN-Settings.exe ✗
-#       ...\win-x64\WARDEN-Settings.exe            158.5 KB ← 框架依赖 ✗
-#       ...\win-x64\publish\WARDEN-Settings.exe     47 MB    ← 自包含单文件 ✓
+#     bin\Release 下【有两个】Settings.exe ✗
+#       ...\win-x64\Settings.exe            158.5 KB ← 框架依赖 ✗
+#       ...\win-x64\publish\Settings.exe     47 MB    ← 自包含单文件 ✓
 #
 #     原来用 Sort-Object -Descending 挑，挑到了【框架依赖】那个 ✗
 #     单把它复制到 dist\ → 找不到依赖 → 启动即崩 ✗
 #     表面现象是"点设置没反应"，实际是进程启动就失败了 ✗
-#     （排查过程：日志显示"[托盘] 已启动设置界面: ...dist\WARDEN-Settings.exe"
+#     （排查过程：日志显示"[托盘] 已启动设置界面: ...dist\Settings.exe"
 #       路径完全正确，但进程不存在 → 才想到是启动失败 ✗）
 #
 #     → 改成【明确优先 publish 目录】✓ 并按大小兜底 ✓
 $setExe = $null
-$setPublish = Join-Path $setDir 'bin\Release\net10.0-windows\win-x64\publish\WARDEN-Settings.exe'
+$setPublish = Join-Path $setDir 'bin\Release\net10.0-windows\win-x64\publish\Settings.exe'
 if (Test-Path $setPublish) {
     $setExe = Get-Item $setPublish
     Write-Host '    （取自 publish 目录）' -ForegroundColor DarkGray
@@ -226,7 +226,7 @@ else {
     # 兜底：全局找，但【按文件大小取最大】
     # 自包含的那个一定大得多 ✓ 这个判据比按名字排序可靠 ✗
     $setExe = Get-ChildItem (Join-Path $setDir 'bin\Release') -Recurse `
-                -Filter 'WARDEN-Settings.exe' -ErrorAction SilentlyContinue |
+                -Filter 'Settings.exe' -ErrorAction SilentlyContinue |
               Sort-Object Length -Descending | Select-Object -First 1
     if ($setExe) {
         Write-Host '    （按大小兜底找到的）' -ForegroundColor DarkGray
@@ -235,14 +235,14 @@ else {
 
 if ($setExe) {
     Copy-Item $setExe.FullName $dist -Force
-    Write-Host ("    ✓ WARDEN-Settings.exe  {0:N1} MB" -f ($setExe.Length / 1MB)) -ForegroundColor Green
+    Write-Host ("    ✓ Settings.exe  {0:N1} MB" -f ($setExe.Length / 1MB)) -ForegroundColor Green
     if ($setExe.Length -lt 5MB) {
         Write-Host '    ★★ 警告：这个设置界面只有几百 KB，很可能是【框架依赖】版 ✗' -ForegroundColor Yellow
         Write-Host '        复制到 dist\ 后会因为找不到依赖而启动失败 ✗' -ForegroundColor Yellow
     }
 }
 else {
-    Write-Host '    ★ 找不到 WARDEN-Settings.exe —— 设置界面将无法启动' -ForegroundColor Yellow
+    Write-Host '    ★ 找不到 Settings.exe —— 设置界面将无法启动' -ForegroundColor Yellow
 }
 
 # ③ 说明文件

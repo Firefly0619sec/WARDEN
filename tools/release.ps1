@@ -66,8 +66,8 @@ if (Test-Path $mainExe) { $items += @{ name = 'WARDEN.exe'; path = $mainExe } }
 $items += @{ name = 'WARDEN-Setup.exe'; path = $setupExe }
 $cli = Join-Path $repo 'tools\cli\bin\Release\net10.0-windows\win-x64\native\warden-cli.exe'
 if (Test-Path $cli) { $items += @{ name = 'warden-cli.exe'; path = $cli } }
-$rt = Join-Path $repo 'tools\redteam\bin\Release\net10.0-windows\win-x64\native\WARDEN-RedTeam.exe'
-if (Test-Path $rt) { $items += @{ name = 'WARDEN-RedTeam.exe'; path = $rt } }
+$rt = Join-Path $repo 'tools\redteam\bin\Release\net10.0-windows\win-x64\native\RedTeam.exe'
+if (Test-Path $rt) { $items += @{ name = 'RedTeam.exe'; path = $rt } }
 
 $sums = @()
 foreach ($it in $items) {

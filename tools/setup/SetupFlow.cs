@@ -22,7 +22,7 @@ namespace WardenSetup
     {
         private const string PayloadName = "payload.zip";
         private const string Version = "0.2.4";
-        public const string RedTeamExe = "WARDEN-RedTeam.exe";
+        public const string RedTeamExe = "RedTeam.exe";
 
         private static void L(string s) => SetupLog.Line("setup", s);
 
@@ -143,7 +143,7 @@ namespace WardenSetup
                 Installer.MakeLnk(Path.Combine(sm, "WARDEN.lnk"), exe, "",
                                   "WARDEN —— 窗口行为拦截工具", dir);
                 Installer.MakeLnk(Path.Combine(sm, "卸载 WARDEN.lnk"),
-                                  Path.Combine(dir, "WARDEN-Uninstaller.exe"), "",
+                                  Path.Combine(dir, "Uninstaller.exe"), "",
                                   "卸载 WARDEN（默认保留你的配置与日志）", dir);
                 if (desktop)
                 {
@@ -314,10 +314,10 @@ namespace WardenSetup
                 k.SetValue("DisplayName", "WARDEN（窗口行为拦截工具）");
                 k.SetValue("DisplayVersion", Version);
                 k.SetValue("Publisher", "Firefly0619sec");
-                k.SetValue("DisplayIcon", Path.Combine(dir, "WARDEN.ico"));
+                k.SetValue("DisplayIcon", Path.Combine(dir, "icon.ico"));
                 k.SetValue("InstallLocation", dir);
                 k.SetValue("UninstallString",
-                           "\"" + Path.Combine(dir, "WARDEN-Uninstaller.exe") + "\"");
+                           "\"" + Path.Combine(dir, "Uninstaller.exe") + "\"");
                 k.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
                 k.SetValue("EstimatedSize", 120000, RegistryValueKind.DWord);

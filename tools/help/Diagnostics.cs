@@ -48,7 +48,7 @@ namespace WardenHelp
             sb.AppendLine("**" + Lang.T("diag.env") + "**");
             sb.AppendLine();
             sb.AppendLine("```");
-            sb.AppendLine("WARDEN-Help  " + Program.Version);
+            sb.AppendLine("Help  " + Program.Version);
             sb.AppendLine("OS           " + Environment.OSVersion.VersionString);
             sb.AppendLine("64-bit       " + Environment.Is64BitOperatingSystem);
             sb.AppendLine("CLR          " + Environment.Version);
@@ -65,8 +65,8 @@ namespace WardenHelp
             string dir = AppContext.BaseDirectory;
             foreach (var exe in new[]
             {
-                "WARDEN.exe", "WARDEN-Settings.exe", "WARDEN-LogView.exe",
-                "WARDEN-Updater.exe", "WARDEN-Uninstaller.exe", "WARDEN-Help.exe",
+                "WARDEN.exe", "Settings.exe", "LogView.exe",
+                "Updater.exe", "Uninstaller.exe", "Help.exe",
             })
             {
                 string p = Path.Combine(dir, exe);

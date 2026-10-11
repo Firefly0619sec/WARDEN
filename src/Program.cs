@@ -143,11 +143,11 @@ namespace WARDEN
                 // ★★★ 用户 2026-10-10 反馈：
                 //   托盘「查看日志」应当【拉起会分析日志的 exe】，
                 //   而不是拿资源管理器打开目录 ✗
-                //   项目里已经有 WARDEN-LogView.exe（日志查看/分析器）✓
+                //   项目里已经有 LogView.exe（日志查看/分析器）✓
                 try
                 {
                     string logView = Path.Combine(AppContext.BaseDirectory,
-                                                   "WARDEN-LogView.exe");
+                                                   "LogView.exe");
                     string logFile = Path.Combine(ToolDir, "WARDEN.log");
                     if (File.Exists(logView))
                     {
@@ -155,11 +155,11 @@ namespace WARDEN
                         psi.UseShellExecute = false;
                         psi.ArgumentList.Add(File.Exists(logFile) ? logFile : ToolDir);
                         Process.Start(psi);
-                        Log("[TRAY] 已拉起日志查看器 WARDEN-LogView.exe ✓");
+                        Log("[TRAY] 已拉起日志查看器 LogView.exe ✓");
                     }
                     else
                     {
-                        Log("★ 找不到 WARDEN-LogView.exe，退回打开日志目录"
+                        Log("★ 找不到 LogView.exe，退回打开日志目录"
                             + "（兜底，不是设计意图）");
                         Process.Start("explorer.exe", ToolDir);
                     }
@@ -174,14 +174,14 @@ namespace WARDEN
         }
 
         /// <summary>
-        /// ★★ 找到设置界面 WARDEN-Settings.exe 的路径。
+        /// ★★ 找到设置界面 Settings.exe 的路径。
         ///
         /// 【为什么需要按顺序找多个地方】（用户 2026-10-10 反馈）
         ///     用户点了托盘菜单的"打开设置界面"，结果【弹出了文件资源管理器】✗
         ///
         ///     原因：编译产物在两个不同的目录 ✗
         ///       src\bin\...\publish\WARDEN.exe
-        ///       tools\settings\bin\...\WARDEN-Settings.exe
+        ///       tools\settings\bin\...\Settings.exe
         ///     主程序按"同目录"找 ✗ 自然找不到 ✗
         ///     找不到就退而打开目录 ✗ 用户看到的就是资源管理器 ✗
         ///
@@ -209,10 +209,10 @@ namespace WARDEN
             string baseDir = AppContext.BaseDirectory;
 
             // 2. 同目录（★ 最理想的情况）
-            candidates.Add(Path.Combine(baseDir, "WARDEN-Settings.exe"));
+            candidates.Add(Path.Combine(baseDir, "Settings.exe"));
 
             // 3. 程序目录下的 tools\settings\
-            candidates.Add(Path.Combine(baseDir, "tools", "settings", "WARDEN-Settings.exe"));
+            candidates.Add(Path.Combine(baseDir, "tools", "settings", "Settings.exe"));
 
             // 4. 从程序目录逐级往上找 tools\settings\bin\Release\...
             try
@@ -226,7 +226,7 @@ namespace WARDEN
                         // 在它的 bin 下递归找
                         try
                         {
-                            foreach (var f in Directory.GetFiles(probe, "WARDEN-Settings.exe",
+                            foreach (var f in Directory.GetFiles(probe, "Settings.exe",
                                                                  SearchOption.AllDirectories))
                             {
                                 candidates.Add(f);
@@ -263,16 +263,16 @@ namespace WARDEN
                 {
                     // ★ 实在找不到 → 明确告诉用户，而不是默默打开资源管理器 ✗
                     //   （用户反馈过：点了"设置"却弹出文件管理器，很困惑 ✗）
-                    Log("★★ 找不到 WARDEN-Settings.exe");
+                    Log("★★ 找不到 Settings.exe");
                     Log("    已尝试的位置：");
-                    Log("      · " + Path.Combine(AppContext.BaseDirectory, "WARDEN-Settings.exe"));
+                    Log("      · " + Path.Combine(AppContext.BaseDirectory, "Settings.exe"));
                     Log("      · 程序目录下的 tools\\settings\\");
                     Log("      · 环境变量 WARDEN_SETTINGS 指定的路径");
                     Log("    提示：运行 build.ps1 会打包出 dist\\ 目录，");
                     Log("          里面两个 exe 放在一起，那时就能正常打开了 ✓");
                     MessageBoxW(IntPtr.Zero,
-                        "找不到设置界面程序 WARDEN-Settings.exe。\n\n"
-                        + "请把 WARDEN-Settings.exe 和 WARDEN.exe 放在同一个目录，\n"
+                        "找不到设置界面程序 Settings.exe。\n\n"
+                        + "请把 Settings.exe 和 WARDEN.exe 放在同一个目录，\n"
                         + "或者运行 build.ps1 打包出 dist\\ 目录。\n\n"
                         + "（详细信息已写入日志）",
                         "WARDEN", 0x00000030 /* MB_ICONWARNING */);
@@ -848,7 +848,7 @@ namespace WARDEN
                         Console.WriteLine("数据目录:");
                         Console.WriteLine("  " + ToolDir);
                         Console.WriteLine();
-                        Console.WriteLine("★ 建议用设置界面 WARDEN-Settings.exe 改配置，");
+                        Console.WriteLine("★ 建议用设置界面 Settings.exe 改配置，");
                         Console.WriteLine("  比手写 JSON 安全得多。");
                         return true;
 
@@ -969,7 +969,7 @@ namespace WARDEN
                 }
 
                 // ★★★ 红队自测规则（用户 2026-10-10："用户可以自己查一下"）✓
-                //   只匹配我们自己的 WARDEN-RedTeam.exe ✓
+                //   只匹配我们自己的 RedTeam.exe ✓
                 //   自测工具单独只有 34 分，够不到动手门槛 55 ✗
                 //   加这条规则（+40 = 74）→ 一跑就能看到整条链：
                 //     隐藏 → 关不掉 → 弹授权询问 →（应急时）冻结 ✓
@@ -981,7 +981,7 @@ namespace WARDEN
                     foreach (Rule rr in cfg.Rules)
                     {
                         if (rr.Process != null && rr.Process.Equals(
-                                "WARDEN-RedTeam.exe", StringComparison.OrdinalIgnoreCase))
+                                "RedTeam.exe", StringComparison.OrdinalIgnoreCase))
                         {
                             hasRed = true;
                             break;
@@ -991,15 +991,15 @@ namespace WARDEN
                     {
                         cfg.Rules.Add(new Rule
                         {
-                            Name = "红队自测（WARDEN-RedTeam.exe）",
-                            Process = "WARDEN-RedTeam.exe",
+                            Name = "红队自测（RedTeam.exe）",
+                            Process = "RedTeam.exe",
                             Enabled = true,
                         });
                         string rj = System.Text.Json.JsonSerializer.Serialize(
                             cfg, GuardJsonContext.Default.GuardConfig);
                         File.WriteAllText(ConfigPath, rj,
                             new System.Text.UTF8Encoding(false));
-                        Log("[CONFIG] 已加入红队自测规则（WARDEN-RedTeam.exe）✓");
+                        Log("[CONFIG] 已加入红队自测规则（RedTeam.exe）✓");
                     }
                 }
                 catch (Exception rEx)
@@ -1082,7 +1082,7 @@ namespace WARDEN
                 bool wndOk = _msgWnd.Create(OnWindowMessage, Log);
                 if (wndOk)
                 {
-                    string iconPath = Path.Combine(AppContext.BaseDirectory, "WARDEN.ico");
+                    string iconPath = Path.Combine(AppContext.BaseDirectory, "icon.ico");
                     _tray = new TrayIcon(iconPath, Log);
                     _tray.Install(_msgWnd.Handle);
 

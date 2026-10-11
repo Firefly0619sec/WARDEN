@@ -203,7 +203,7 @@ namespace WardenHelp
                 Location = new Point(282, 14),
                 Size = new Size(130, 32),
             };
-            btnSettings.Click += (s, e) => LaunchSibling("WARDEN-Settings.exe", "");
+            btnSettings.Click += (s, e) => LaunchSibling("Settings.exe", "");
             bottom.Controls.Add(btnSettings);
 
             _btnClose = new Button

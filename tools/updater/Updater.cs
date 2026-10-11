@@ -16,7 +16,7 @@
 //    那时这里会加一个"检查更新"按钮去读 releases 里的 version.txt ✓
 //
 //  命令行：
-//    WARDEN-Updater.exe <更新包.zip> [--silent] [--no-launch]
+//    Updater.exe <更新包.zip> [--silent] [--no-launch]
 // ============================================================================
 
 using System;
