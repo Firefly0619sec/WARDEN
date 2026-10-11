@@ -44,6 +44,12 @@ New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 #   → 六语言能力实际上从未随包发布 ✓（设置界面的语言切换等于只有内置 zh-Hans ✓）
 # 本段：把 WARDEN\lang\*.txt 复制进 dist\app\lang\ ✓ 并先跑一致性校验当闸门 ✓
 $langSrc = Join-Path $repo 'lang'
+# ★★ 2026-10-11 修（真跑一次才发现的硬伤 ✗）：
+#   这一段原来直接用 $appDir ✗ 而 $appDir 要到第 88 行（打安装包那段）才定义 ✗
+#   → pwsh 的 Join-Path 收到 $null 直接抛「无法绑定到参数 Path」✗ 发布链在第 47 行就断 ✓
+#   → 说明这段"补语言包"的代码从加进来那天起【从来没有真跑通过】✗（当时的"干跑"是假的 ✓）
+#   修法：$appDir 提前定义 ✓
+$appDir = Join-Path $repo 'dist\app'
 $langDst = Join-Path $appDir 'lang'
 if (-not (Test-Path $langSrc)) { throw ('[发布] 找不到语言包目录 ' + $langSrc + ' ✗ 中止（不发没有语言的包 ✓）') }
 
@@ -60,7 +66,7 @@ if (Test-Path $parity) {
 New-Item -ItemType Directory -Path $langDst -Force | Out-Null
 Copy-Item (Join-Path $langSrc '*.txt') $langDst -Force
 $langCount = (Get-ChildItem $langDst -File -Filter '*.txt' | Measure-Object).Count
-Write-Host ('[发布] 语言包已随包：' + $langCount + ' 个 → dist\app\lang\') -ForegroundColor Green
+Write-Host ('[发布] 语言包（构建前先放一份）：' + $langCount + ' 个 → dist\app\lang\') -ForegroundColor DarkGray
 if ($langCount -lt 6) { throw ('[发布] 语言包只有 ' + $langCount + ' 个（期望 6 个）✗ 中止') }
 Write-Host ('[发布] 版本: ' + $ver + '   产物目录: ' + $outDir) -ForegroundColor Cyan
 
@@ -82,13 +88,44 @@ if ($LASTEXITCODE -ne 0) { throw '[发布] 载荷组装失败，中止（不发�
 #   → 这里重建一次产物目录 ✓
 New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 
+# ★★ 2026-10-11 修（第二个硬伤 ✗）：语言包必须在【载荷重新组装之后】再复制一次 ✓
+#   因为 build.ps1 的 Step 5 会清空 dist\ ✗ 前面放的那份 lang\ 会被一起抹掉 ✗
+#   → 等于语言包从来没随包发布过 ✓（只修 $appDir 还是不对 ✓ 两个都得修 ✓）
+$langDst = Join-Path $appDir 'lang'
+New-Item -ItemType Directory -Path $langDst -Force | Out-Null
+Copy-Item (Join-Path $langSrc '*.txt') $langDst -Force
+$langCount2 = (Get-ChildItem $langDst -File -Filter '*.txt' | Measure-Object).Count
+Write-Host ('[发布] 语言包已随包（组装后确认）：' + $langCount2 + ' 个 → dist\app\lang\') -ForegroundColor Green
+if ($langCount2 -lt 6) { throw ('[发布] 语言包只有 ' + $langCount2 + ' 个（期望 6 个）✗ 中止') }
 # ---------------------------------------------------------------- ③ 打安装包
 Write-Host '[发布] 打安装包…' -ForegroundColor Cyan
 $setupDir = Join-Path $repo 'tools\setup'
-$appDir = Join-Path $repo 'dist\app'
 $payload = Join-Path $setupDir 'payload.zip'
 Remove-Item $payload -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $appDir '*') -DestinationPath $payload -CompressionLevel Optimal -Force
+
+# ---------------------------------------------------------------- ③.9 载荷闸门（2026-10-11 补）
+# ★ 为什么要有：安装包里的东西【永远要拆开看一眼】✗
+#   本次就抓到「语言包其实从没进过包」✗（见上面两处修复 ✓）
+#   闸门三条：八个必需 exe 齐全 ✓ 语言包 ≥ 6 个 ✓ 每个 exe ≤ 8MB ✓ 不合格一律中止 ✓
+Write-Host '[发布] 载荷闸门：拆开 payload.zip 逐条核对…' -ForegroundColor Cyan
+$zip = [System.IO.Compression.ZipFile]::OpenRead($payload)
+try {
+    $names = @($zip.Entries | ForEach-Object { $_.FullName })
+    $needExe = @('WARDEN.exe', 'Settings.exe', 'Updater.exe', 'LogView.exe',
+                 'Uninstaller.exe', 'Help.exe', 'warden-cli.exe', 'RedTeam.exe')
+    $miss = @($needExe | Where-Object { $names -notcontains $_ })
+    if ($miss.Count -gt 0) { throw ('[发布] 载荷里缺少必需 exe：' + ($miss -join ', ') + ' ✗ 中止') }
+    $langs = @($names | Where-Object { $_ -like 'lang/*.txt' })
+    if ($langs.Count -lt 6) { throw ('[发布] 载荷里语言包只有 ' + $langs.Count + ' 个 ✗ 中止（六语言等于没发 ✓）') }
+    $big = @($zip.Entries | Where-Object { $_.FullName -like '*.exe' -and $_.Length -gt 8MB })
+    if ($big.Count -gt 0) {
+        throw ('[发布] 载荷里这些 exe 超过 8MB ✗ 中止：' + (($big | ForEach-Object { $_.FullName + '=' + [math]::Round($_.Length / 1MB, 2) + 'MB' }) -join ', '))
+    }
+    Write-Host ('    ✓ 必需 exe 8 个齐全 ✓ 语言包 ' + $langs.Count + ' 个 ✓ 每个 exe ≤ 8MB ✓（共 ' + $names.Count + ' 个条目）') -ForegroundColor Green
+}
+finally { $zip.Dispose() }
+
 Push-Location $setupDir
 & dotnet publish -c Release -r win-x64 --nologo -v q | Out-Null
 Pop-Location

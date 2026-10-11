@@ -171,12 +171,32 @@ namespace WardenSetup
                     note?.Invoke("自检基线：配置里没有 expected_self_hash ✓ 首次运行会自动写入 ✓");
                     return;
                 }
-                string now = re.Replace(txt, "$1" + hash + "$3", 1);
+                // ★★★ 2026-10-11 全量测试抓到的【数据破坏级】bug ✗✗（真实用户配置被写坏过 ✓）
+                //   原来替换串写成  "$1" + hash + "$3"  ✗
+                //   而 .NET 的 Regex.Replace 会把 $ 后面【连续的数字】整段当成组号 ✗
+                //   → 新哈希只要以数字开头（本次是 4164b4df…）就拼成 "$14164b4df…" ✗
+                //   → 没有 14164 号捕获组 → 按【字面量】原样吐出 ✗
+                //   → 配置里那一行变成：      $14164b4dfe8523da…a5b8",
+                //     键名 "expected_self_hash" 与引号一起被吃掉 ✗ → JSON 语法错误 ✗
+                //   → 主程序下次读配置直接解析失败 ✗（用户看到的是"装完新版本就打不开了"✗）
+                //   实测证据：%LOCALAPPDATA%\WARDEN\WARDEN.json 里出现
+                //      $14164b4dfe8523da16fa2a41acc1b7eaf98c536f66130a3158024c647e401a5b8",
+                //   修法两条：① 组引用一律加花括号 ${1} / ${3} ✓
+                //             ② 替换后【自检】✗ 不满足就一个字都不写 ✓（宁可不动也不能写坏 ✓）
+                string now = re.Replace(txt, "${1}" + hash + "${3}", 1);
+                if (!System.Text.RegularExpressions.Regex.IsMatch(
+                        now, "\"expected_self_hash\"\\s*:\\s*\"" + hash + "\""))
+                {
+                    note?.Invoke("★ 自检基线：替换后自检没过 → 不写配置文件 ✓（绝不写坏用户的配置 ✓）");
+                    return;
+                }
                 if (now == txt && txt.Contains(hash))
                 {
                     note?.Invoke("自检基线：已经是最新的 ✓");
                     return;
                 }
+                // ★ 写之前先留一份原样备份 ✓（真出事能一字不差地退回去 ✓）
+                try { File.Copy(cfg, cfg + ".setup-bak", true); } catch { }
                 File.WriteAllText(cfg, now);
                 note?.Invoke("✓ 已把自检基线更新为新版本 exe 的 SHA256（" + hash.Substring(0, 16) + "…）");
             }

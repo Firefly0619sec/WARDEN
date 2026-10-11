@@ -266,7 +266,12 @@ namespace WardenSetup
             _ckDesktop = new CheckBox
             {
                 Text = "在桌面放一个快捷方式",
-                Checked = DesktopWanted || true,
+                // ★★★ 2026-10-11 全量测试抓到的 bug ✗：原来这里是 DesktopWanted || true ✗
+                //   → 恒为 true ✗ → --no-desktop 完全失效 ✓
+                //   → 实测：用 --no-desktop 的向导装到沙箱，桌面上照样多出一个 WARDEN.lnk ✗
+                //     （而且指向沙箱临时目录 ✗ = 用户桌面上的坏快捷方式 ✓）
+                //   修法：老实用传入的初值 ✓（--no-desktop 进来就是 false ✓）
+                Checked = DesktopWanted,
                 Bounds = new Rectangle(20, 244, 400, 24),
             };
             _ckAuto = new CheckBox
