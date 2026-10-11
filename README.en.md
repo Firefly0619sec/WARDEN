@@ -2,7 +2,7 @@
 
 > 中文版：[README.md](README.md)　·　License: **AGPL-3.0-or-later**
 >
-> **Status: Beta 2 (0.1.0-beta.2)**
+> **Status: Beta 2 (0.2.4（Beta 2 · 第 4 次改版）)**
 > Downloads: <https://github.com/Firefly0619sec/WARDEN/releases>
 > Interface languages: **six** — Simplified Chinese, English (UK), English (US),
 > 繁體中文（中國臺灣 · 中國香港 · 中國澳門）
@@ -278,6 +278,16 @@ project's working language); code and identifiers are English.
 
 ## Status
 
-Beta (`0.1.0-beta.1`). It works and it is tested, but the behaviour scoring is
+Beta (`0.1.0-beta.1（历史）`). It works and it is tested, but the behaviour scoring is
 still being tuned — expect the thresholds to move. Bug reports with a log
 excerpt are very welcome.
+
+---
+
+## About the red star
+
+If you scrolled all the way down from the Releases page, you have probably already met it — the red star in the corner of your tray.
+
+The name is borrowed from *Red Star Over China*. Not as a statement of any kind, but because in that book a red star is precisely something you can still see **where it is darkest**. What WARDEN does is smaller than that: it stands behind your windows and pushes back the things that should not have popped up. When it gets dark, it is still there. That is all.
+
+So the next time you notice the star lit up, that is it being on duty. You do not have to click it, and it will not interrupt you.
