@@ -72,13 +72,13 @@ namespace WardenUninstall
                 // 0.2.6 修（实测出来的真 bug，0.2.5 存在）：
                 //   Ask 的返回值是「用户是否确认卸载」，不是「是否删除数据」
                 //   原来直接赋给 purge，导致不勾选复选框也会删除配置与日志
-                bool confirmed = UninstallForm.Ask(purge);
-                if (!confirmed || UninstallForm.Cancelled)
+                bool confirmed = Win32Ui.Ask(purge);
+                if (!confirmed || Win32Ui.Cancelled)
                 {
                     Log("用户取消卸载");
                     return;
                 }
-                purge = UninstallForm.Purge;   // 数据删不删，只由复选框说了算
+                purge = Win32Ui.Purge;   // 数据删不删，只由复选框说了算
                 Log("用户确认卸载；删除数据=" + purge + "（来自复选框）");
             }
 
