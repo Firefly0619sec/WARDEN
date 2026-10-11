@@ -49,7 +49,23 @@ namespace WardenUninstall
         }
         [StructLayout(LayoutKind.Sequential)] private struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public int x, y; }
         [StructLayout(LayoutKind.Sequential)] private struct RECT { public int L, T, R, B; }
-        [StructLayout(LayoutKind.Sequential)] private struct PAINTSTRUCT { public IntPtr hdc; public bool erase; public RECT rc; public bool restore, incUpdate; public byte b0, b1, b2, b3, b4, b5, b6, b7; }
+        // ★★ 2026-10-11 崩溃根因（0xC0000409 fail-fast ✓）：
+        //    原生 PAINTSTRUCT 的 rgbReserved 是【32 字节】✗ 我原来只声明 8 个 ✔
+        //    → BeginPaint 会写满 72 字节 ✗ → 越界踩坏栈 ✓ 触发 /GS 哨兵 → fail-fast ✓
+        //    修法：按原生布局老实声明 ✓ BOOL 显式写 int（不依赖 bool 的默认宽度 ✓）
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PAINTSTRUCT
+        {
+            public IntPtr hdc;        // HDC
+            public int fErase;        // BOOL（4 ✓）
+            public RECT rcPaint;      // RECT（16 ✓）
+            public int fRestore;      // BOOL（4 ✓）
+            public int fIncUpdate;    // BOOL（4 ✓）
+            public byte r0, r1, r2, r3, r4, r5, r6, r7;
+            public byte r8, r9, r10, r11, r12, r13, r14, r15;
+            public byte r16, r17, r18, r19, r20, r21, r22, r23;
+            public byte r24, r25, r26, r27, r28, r29, r30, r31;   // ★ 合计 32 字节 ✓
+        }
         private delegate IntPtr WndProcDelegate(IntPtr h, uint m, IntPtr w, IntPtr l);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern ushort RegisterClassExW(ref WNDCLASSEXW c);
