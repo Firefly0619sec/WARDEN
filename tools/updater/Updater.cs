@@ -233,6 +233,54 @@ namespace WardenUpdater
             return false;
         }
 
+
+        /// <summary>★ 刷新自检基线（2026-10-11 回归测试发现的【阻断级】bug ✗）
+        ///   WARDEN.json 里 expected_self_hash 记的是【上一个版本 exe】的 SHA256 ✓
+        ///   升级/更新换掉 exe 后哈希必然变 → 主程序自检判定"被篡改"✗ → 直接拒绝运行 ✗✗
+        ///   （用户看到的是"装了新版本，程序打不开了"✗ 只能靠环境变量临时绕过 ✓）
+        ///   所以：拷完新 exe，必须把它的哈希写回配置 ✓
+        ///   只改这一个字段 ✗ 用正则定点替换 ✓ 不解析不重写整个 JSON ✓（保住用户其它设置 ✓）</summary>
+        internal static void RefreshSelfBaseline(string installDir, Action<string>? note = null)
+        {
+            try
+            {
+                string exe = Path.Combine(installDir, "WARDEN.exe");
+                string dataDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN");
+                string cfg = Path.Combine(dataDir, "WARDEN.json");
+                if (!File.Exists(exe)) { note?.Invoke("自检基线：没有 WARDEN.exe ✓ 跳过"); return; }
+                if (!File.Exists(cfg)) { note?.Invoke("自检基线：还没有配置文件 ✓ 首次运行会自动写入 ✓"); return; }
+
+                string hash;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs = File.OpenRead(exe))
+                {
+                    hash = BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
+                }
+
+                string txt = File.ReadAllText(cfg);
+                var re = new System.Text.RegularExpressions.Regex(
+                    "(\"expected_self_hash\"\\s*:\\s*\")([0-9a-fA-F]{32,})(\")");
+                if (!re.IsMatch(txt))
+                {
+                    note?.Invoke("自检基线：配置里没有 expected_self_hash ✓ 首次运行会自动写入 ✓");
+                    return;
+                }
+                string now = re.Replace(txt, "$1" + hash + "$3", 1);
+                if (now == txt && txt.Contains(hash))
+                {
+                    note?.Invoke("自检基线：已经是最新的 ✓");
+                    return;
+                }
+                File.WriteAllText(cfg, now);
+                note?.Invoke("✓ 已把自检基线更新为新版本 exe 的 SHA256（" + hash.Substring(0, 16) + "…）");
+            }
+            catch (Exception e)
+            {
+                note?.Invoke("自检基线更新失败（不影响安装 ✓）：" + e.Message);
+            }
+        }
+
         private static bool Apply(string zip)
         {
             try
@@ -260,6 +308,7 @@ namespace WardenUpdater
                     n++;
                 }
                 Log("已覆盖 " + n + " 个文件 ✓");
+            RefreshSelfBaseline(InstallDir);   // ★ 刷新自检基线（更新后必须 ✓）
                 return n > 0;
             }
             catch (Exception e)
