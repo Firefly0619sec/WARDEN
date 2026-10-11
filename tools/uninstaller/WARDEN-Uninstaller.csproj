@@ -9,6 +9,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Uninstaller</AssemblyName>
@@ -16,15 +17,12 @@
     <AssemblyTitle>WARDEN 卸载程序</AssemblyTitle>
     <Product>WARDEN</Product>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-    <Version>0.3.0</Version>
+    <Version>0.2.6</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <!-- ★ 2026-10-11 Beta 3：原生 AOT（界面已改为原生 Win32/GDI ✓）
-         体积从 49.25 MB 降到约 1 MB ✓ 且目标机不需要装 .NET ✓ -->
-    <PublishAot>true</PublishAot>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <StripSymbols>true</StripSymbols>
-    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
     <DebugType>none</DebugType>
   </PropertyGroup>
 
