@@ -659,6 +659,11 @@ namespace WardenOnlineSetup
             }
             // ★ 优先"离线安装包"：名字带 Setup 但【不带 Online/Web/Boot】✓
             //   否则会挑中在线安装器自己（小的那个 ✗ 等于自己下自己 ✓）
+            // ★ 跳过 arm64 / arm 资产（换仓库时挑错过 ✗ 比如 PowerToys 挑到 arm64 ✓）
+            found.RemoveAll(a => a.n.IndexOf("arm64", StringComparison.OrdinalIgnoreCase) >= 0
+                                 || a.n.IndexOf("aarch64", StringComparison.OrdinalIgnoreCase) >= 0
+                                 || System.Text.RegularExpressions.Regex.IsMatch(a.n, @"(?i)\barm\b"));
+            if (found.Count == 0) { return list.Count > 0 ? list[0] : (null!, null!, 0); }
             var setup = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                                        && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0
                                        && a.n.IndexOf("Online", StringComparison.OrdinalIgnoreCase) < 0
