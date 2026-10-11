@@ -17,6 +17,9 @@ namespace WardenUninstall
     internal static class Win32Ui
     {
         public static bool Cancelled;
+        // 复选框的真实状态（true = 用户确实勾了那个删除数据的选项）
+        // 0.2.5 的 bug：这里没记录，外面误把「确认卸载」当成「删数据」
+        public static bool Purge;
 
         private const string Cls = "WardenUninstallWnd";
         private const int ID_OK = 101, ID_CANCEL = 102, ID_PURGE = 103, SW_SHOW = 5;
@@ -36,7 +39,9 @@ namespace WardenUninstall
         private static IntPtr _hwnd, _ck, _fontBody, _fontTitle, _fontFallback;
         private static IntPtr _clsName;   // ★ 类名的原生指针（AOT 不能放 string ✗）
         private static double _scale = 1.0;
-        private static WndProcDelegate? _procRef;   // ★ 持有引用，否则委托被 GC 回收后回调即崩
+        // ★ 2026-10-11 实测结论：AOT 下不能用 Marshal.GetFunctionPointerForDelegate ✗
+        //   （探针 AotProbe 三种方式实测：它就是 fail-fast 0xC0000409 的根因 ✓）
+        //   改用官方支持的 [UnmanagedCallersOnly] + delegate* unmanaged[Stdcall] ✓
 
         // ★★ 2026-10-11 崩溃根因（第二版判断，比第一版更可信 ✓）：
         //    Native AOT 下【内置封送器被禁用】✗
@@ -73,7 +78,6 @@ namespace WardenUninstall
             public byte r16, r17, r18, r19, r20, r21, r22, r23;
             public byte r24, r25, r26, r27, r28, r29, r30, r31;   // ★ 合计 32 字节 ✓
         }
-        private delegate IntPtr WndProcDelegate(IntPtr h, uint m, IntPtr w, IntPtr l);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern ushort RegisterClassExW(ref WNDCLASSEXW c);
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -93,20 +97,29 @@ namespace WardenUninstall
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr h);
         [DllImport("user32.dll")] private static extern int MessageBoxW(IntPtr h, string text, string caption, uint type);
         [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr h);
-        [DllImport("user32.dll")] private static extern IntPtr GetStockObject(int i);
+        [DllImport("gdi32.dll")] private static extern IntPtr GetStockObject(int i);   // ★ 2026-10-11 修：原来错写成 user32 ✗ 导致 OnCreate 抛异常、控件全没建成 ✓
         [DllImport("user32.dll")] private static extern int FillRect(IntPtr dc, ref RECT r, IntPtr brush);
         [DllImport("user32.dll")] private static extern IntPtr BeginPaint(IntPtr h, out PAINTSTRUCT ps);
         [DllImport("user32.dll")] private static extern bool EndPaint(IntPtr h, ref PAINTSTRUCT ps);
         [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+        // ★ 2026-10-11：把"客户区尺寸"换算成"窗口尺寸"✗ 否则按钮会被标题栏+边框裁掉 ✓
+        [DllImport("user32.dll")] private static extern bool AdjustWindowRectEx(ref RECT r, uint style, bool menu, uint exStyle);
         [DllImport("gdi32.dll")] private static extern IntPtr CreateSolidBrush(int c);
         [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr o);
         [DllImport("gdi32.dll")] private static extern int SetTextColor(IntPtr dc, int c);
         [DllImport("gdi32.dll")] private static extern int SetBkMode(IntPtr dc, int m);
-        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] private static extern int DrawTextW(IntPtr dc, string s, int n, ref RECT r, uint f);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int DrawTextW(IntPtr dc, string s, int n, ref RECT r, uint f);   // ★ 2026-10-11 修：原来错写成 gdi32 ✗ 导致文字画不出来 ✓
         [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr CreateFontW(int h, int w, int esc, int orient, int weight, uint italic, uint under, uint strike, uint charset, uint prec, uint clip, uint quality, uint pitch, string face);
         [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr dc, IntPtr o);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string? n);
+
+        // ★ 诊断日志（2026-10-11）：不再静默吞异常 ✓ 每步都落到 %TEMP%\win32ui.log ✓
+        private static void L(string s)
+        {
+            try { System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "win32ui.log"),
+                DateTime.Now.ToString("HH:mm:ss.fff") + "  " + s + Environment.NewLine); } catch { }
+        }
 
         private static int S(int px) => (int)Math.Round(px * _scale);
 
@@ -117,29 +130,36 @@ namespace WardenUninstall
         }
 
         /// <summary>确认窗：true = 确认卸载；false = 取消（Cancelled 同步置位 ✓）</summary>
-        public static bool Ask(bool defaultPurge)
+        public static unsafe bool Ask(bool defaultPurge)
         {
             _defaultPurge = defaultPurge;
             _result = false;
             Cancelled = false;
             _dataMb = DataDirMb();
+            L("Ask 开始 defaultPurge=" + defaultPurge + " dataMb=" + _dataMb);
             try { SetProcessDpiAwarenessContext((IntPtr)(-4)); } catch { }   // PER_MONITOR_AWARE_V2 ✓
+            L("DPI 设置完成 ✓");
 
             IntPtr inst = GetModuleHandleW(null);
-            _procRef = WndProc;                                              // ★ 防 GC ✓
             _clsName = Marshal.StringToHGlobalUni(Cls);   // ★ 自己分配原生字符串 ✓
             var wc = new WNDCLASSEXW
             {
                 cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
-                lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_procRef),
+                lpfnWndProc = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr, IntPtr>)&AotWndProc,   // ★ AOT 官方方式 ✓
                 hInstance = inst,
                 hbrBackground = (IntPtr)(COLOR_WINDOW + 1),
                 lpszClassName = _clsName,
             };
-            RegisterClassExW(ref wc);
+            ushort atom = RegisterClassExW(ref wc);
+            L("RegisterClassExW atom=" + atom + " err=" + Marshal.GetLastWin32Error());
 
             const int cw = 560, ch = 330;
-            _hwnd = CreateWindowExW(0, Cls, "卸载 WARDEN", WS_CAPTION | WS_SYSMENU, 0, 0, cw, ch,
+            // ★ 客户区 560x330 → 窗口尺寸（加上标题栏与边框 ✓）
+            RECT want = new() { L = 0, T = 0, R = cw, B = ch };
+            AdjustWindowRectEx(ref want, WS_CAPTION | WS_SYSMENU, false, 0);
+            int wWin = want.R - want.L, hWin = want.B - want.T;
+            L("客户区 " + cw + "x" + ch + " → 窗口 " + wWin + "x" + hWin);
+            _hwnd = CreateWindowExW(0, Cls, "卸载 WARDEN", WS_CAPTION | WS_SYSMENU, 0, 0, wWin, hWin,
                 IntPtr.Zero, IntPtr.Zero, inst, IntPtr.Zero);
             if (_hwnd == IntPtr.Zero)
             {
@@ -149,9 +169,10 @@ namespace WardenUninstall
                 return r == IDYES;
             }
 
+            L("CreateWindowExW hwnd=" + _hwnd);
             uint dpi = GetDpiForWindow(_hwnd);
             _scale = dpi > 0 ? dpi / 96.0 : 1.0;
-            int wReal = S(cw), hReal = S(ch);
+            int wReal = S(wWin), hReal = S(hWin);
             SetWindowPos(_hwnd, IntPtr.Zero, (GetSystemMetrics(0) - wReal) / 2, (GetSystemMetrics(1) - hReal) / 2,
                 wReal, hReal, 0x0004 /*SWP_NOZORDER*/);
 
@@ -190,11 +211,15 @@ namespace WardenUninstall
             catch { return 0; }
         }
 
-        private static IntPtr WndProc(IntPtr h, uint m, IntPtr w, IntPtr l)
+        [System.Runtime.InteropServices.UnmanagedCallersOnly(
+            CallConvs = new[] { typeof(System.Runtime.CompilerServices.CallConvStdcall) })]
+        private static IntPtr AotWndProc(IntPtr h, uint m, IntPtr w, IntPtr l)
         {
+            try
+            {
             switch (m)
             {
-                case WM_CREATE: OnCreate(h); return IntPtr.Zero;
+                case WM_CREATE: L("收到 WM_CREATE ✓"); OnCreate(h); L("OnCreate 返回 ✓"); return IntPtr.Zero;
                 case WM_COMMAND:
                 {
                     int id = (int)(w.ToInt64() & 0xFFFF);
@@ -211,10 +236,13 @@ namespace WardenUninstall
                 case WM_PAINT: OnPaint(h); return IntPtr.Zero;
             }
             return DefWindowProcW(h, m, w, l);
+            }
+            catch (Exception ex) { L("★ WndProc 里抛异常 msg=0x" + m.ToString("X") + " : " + ex.GetType().Name + " " + ex.Message); return DefWindowProcW(h, m, w, l); }   // ★ 异常绝不能逃出 UnmanagedCallersOnly ✓
         }
 
         private static void OnCreate(IntPtr h)
         {
+            L("WM_CREATE 进入 ✓ hwnd=" + h);
             _fontBody = CreateFontW(S(-12), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Microsoft YaHei UI");
             _fontTitle = CreateFontW(S(-17), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Microsoft YaHei UI");
             _fontFallback = GetStockObject(DEFAULT_GUI_FONT);
@@ -228,6 +256,7 @@ namespace WardenUninstall
                 S(340), S(280), S(100), S(32), h, (IntPtr)ID_OK, IntPtr.Zero, IntPtr.Zero);
             IntPtr cancel = CreateWindowExW(0, "BUTTON", "取消", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
                 S(450), S(280), S(90), S(32), h, (IntPtr)ID_CANCEL, IntPtr.Zero, IntPtr.Zero);
+            L("控件创建: ck=" + _ck + " ok=" + ok + " cancel=" + cancel + " err=" + Marshal.GetLastWin32Error() + " 字体=" + _fontBody);
 
             foreach (IntPtr c in new[] { _ck, ok, cancel })
             {
@@ -242,6 +271,7 @@ namespace WardenUninstall
         {
             long chk = _ck != IntPtr.Zero ? SendMessageW(_ck, BM_GETCHECK, IntPtr.Zero, IntPtr.Zero).ToInt64()
                                           : (_defaultPurge ? 1 : 0);
+            Purge = chk == 1;   // 只有真勾了才是 true
             if (chk == 1)
             {
                 int r = MessageBoxW(h, "确定连配置与日志一起删掉吗？\n\n删了就找不回来了 ✗",

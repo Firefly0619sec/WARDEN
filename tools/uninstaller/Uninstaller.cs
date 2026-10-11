@@ -23,7 +23,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Windows.Forms;
+// ★ 2026-10-11 Beta 3：不再依赖 WinForms ✗（改用同目录的 Win32Ui.cs 原生实现 ✓ 以便 Native AOT）
+
 using Microsoft.Win32;
 
 using WardenSetup;   // ★ 复用安装器里的停止令牌实现 ✓
@@ -67,14 +68,18 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                purge = UninstallForm.Ask(purge);
-                if (purge == false && UninstallForm.Cancelled)
+                // ★ 2026-10-11 Beta 3：原生 Win32 确认窗（WinForms 版已改名 .winforms-bak 保留 ✓）
+                // 2026-10-11 修（自动化检验实测出来的真 bug，0.2.5 已发布版同样存在）：
+                //   Ask 的返回值是「用户是否确认卸载」，不是「是否删除数据」
+                //   原来直接赋给 purge，导致不勾选复选框也会删除配置与日志
+                bool confirmed = Win32Ui.Ask(purge);
+                if (!confirmed || Win32Ui.Cancelled)
                 {
                     Log("用户取消卸载");
                     return;
                 }
+                purge = Win32Ui.Purge;   // 数据删不删，只由复选框说了算
+                Log("用户确认卸载；删除数据=" + purge + "（来自复选框）");
             }
 
             bool ok = Run(purge);
@@ -82,13 +87,13 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                MessageBox.Show(ok
+                // ★ 原生消息框（取代 WinForms MessageBox ✗ AOT 安全 ✓）
+                Win32Ui.Msg(ok
                         ? "WARDEN 已卸载。\n\n" + (purge
                             ? "配置与日志也已删除。"
                             : "你的配置与日志【保留】在：\n" + DataDir + "\n（要一起删就再运行一次并勾选删除）")
                         : "卸载完成，但有部分文件没删掉（可能还在运行）。\n详情见：\n" + LogPath,
-                    "WARDEN 卸载", MessageBoxButtons.OK,
-                    ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    "WARDEN 卸载", ok);
             }
             Environment.Exit(ok ? 0 : 4);
         }
