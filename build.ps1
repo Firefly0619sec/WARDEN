@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 #  ★★★ 安全闸（事故后新增，2026-10-10）：
 #    之前发生过"仓库被整空"的事故 ✗ 从此构建脚本必须：
 #      ① 先打一份快照（只增不删）
@@ -195,6 +195,11 @@ New-Item -ItemType Directory -Path $dist -Force | Out-Null
 if (Test-Path $mainExe) { Copy-Item $mainExe $dist -Force }
 $icoSrc = Join-Path $srcDir 'WARDEN.ico'
 if (Test-Path $icoSrc) { Copy-Item $icoSrc $dist -Force }
+  # ★ 暂停/紧急两种状态的图标是运行时按【文件路径】加载的 ✗ 必须一起进 dist ✓
+  foreach ($extra in @('WARDEN.ico', 'WARDEN-paused.ico', 'WARDEN-emergency.ico')) {
+      $p2 = Join-Path $PSScriptRoot $extra
+      if (Test-Path $p2) { Copy-Item $p2 $dist -Force }
+  }
 
 # ② 设置界面
 #
