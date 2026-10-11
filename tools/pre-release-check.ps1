@@ -66,7 +66,7 @@ Write-Host ('  产品版本 = ' + $want + '（四个 AOT 工具保留各自历�
 # ---------------------------------------------------------------- ④ 敏感信息
 Write-Host ''
 Write-Host '④ 公开仓里有没有密钥/口令（会被全世界看到 ✗）' -ForegroundColor Cyan
-$sec = git grep -n -I -E 'ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|BEGIN PGP PRIVATE KEY|AKIA[0-9A-Z]{16}|xox[baprs]-' 2>$null
+$sec = git grep -n -I -E 'ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|BEGIN PGP PRIVATE KEY|AKIA[0-9A-Z]{16}|xox[baprs]-' -- . ':(exclude)tools/pre-release-check.ps1' 2>$null
 if ($sec) { Bad '发现疑似密钥 ✗ 必须先在本地清掉并轮换 ✓'; $sec | Select-Object -First 5 | ForEach-Object { Write-Host ('      ' + $_) } }
 else { Ok '没有高信号密钥 ✓' }
 $paths = git grep -n -I -E 'C:\\Users\\[A-Za-z0-9_]+' -- '*.cs' '*.ps1' '*.py' 2>$null | Where-Object { $_ -notmatch 'Users\\%|Users\\Public' }

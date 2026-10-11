@@ -28,7 +28,7 @@ Write-Host ('[发布] 仓库: ' + $repo) -ForegroundColor Cyan
 $csproj = Join-Path $repo 'src\WARDEN.csproj'
 $projText = Get-Content $csproj -Raw
 $cur = [regex]::Match($projText, '<Version>([^<]+)</Version>').Groups[1].Value
-if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.3.4' }
+if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.3.5' }
 if ($Version -ne '' -and $Version -ne $cur) {
     Write-Host ('[发布] 版本 ' + $cur + ' → ' + $Version) -ForegroundColor Yellow
     $projText = [regex]::Replace($projText, '<Version>[^<]*</Version>', '<Version>' + $Version + '</Version>')
