@@ -31,9 +31,6 @@ if ($last -and ((Get-Date) - $last.LastWriteTime).TotalMinutes -lt 5) {
     Get-ChildItem $snap -File -Filter 'WARDEN-*-构建前.zip' | Sort-Object LastWriteTime -Descending |
         Select-Object -Skip 5 | ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
 }
-} catch {
-    Write-Host ('[安全闸] 快照失败（继续构建，但请留意）: ' + $_.Exception.Message) -ForegroundColor Yellow
-}
 function Assert-SafeDelete([string]$Path) {
     $full = [System.IO.Path]::GetFullPath($Path)
     $allowed = @('dist', 'bin', 'obj')
