@@ -156,30 +156,47 @@ namespace WardenCli
                 Console.WriteLine("(没有配置文件：" + cfg + ")");
                 return 1;
             }
-            // 不做完整反序列化：直接找 rules 段里的名字/进程，够排障用 ✓
-            string text = File.ReadAllText(cfg, Encoding.UTF8);
-            int i = text.IndexOf("\"rules\"", StringComparison.Ordinal);
-            if (i < 0)
+            // ★ 用 System.Text.Json 真解析（2026-10-11 ✓ 零新依赖 ✓）
+            //   老写法是"在文本里找 \"rules\" 再找第一个 ]"✗
+            //   → 遇到嵌套数组或带方括号的正则就截断 ✓ 实测 3 条规则只报出 1 条 ✓
+            try
             {
-                Console.WriteLine("(配置里没有 rules 段)");
-                return 1;
-            }
-            int end = text.IndexOf(']', i);
-            string seg = end > i ? text.Substring(i, end - i) : text.Substring(i);
-            int count = 0;
-            foreach (string line in seg.Split('\n'))
-            {
-                string s = line.Trim();
-                if (s.StartsWith("\"name\"", StringComparison.Ordinal)
-                    || s.StartsWith("\"process\"", StringComparison.Ordinal)
-                    || s.StartsWith("\"enabled\"", StringComparison.Ordinal))
+                using var doc = System.Text.Json.JsonDocument.Parse(
+                    File.ReadAllText(cfg, Encoding.UTF8));
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("Rules", out var arr)
+                    || arr.ValueKind != System.Text.Json.JsonValueKind.Array)
                 {
-                    Console.WriteLine("  " + s.TrimEnd(','));
-                    if (s.StartsWith("\"name\"", StringComparison.Ordinal)) { count++; }
+                    if (!root.TryGetProperty("rules", out arr)
+                        || arr.ValueKind != System.Text.Json.JsonValueKind.Array)
+                    {
+                        Console.WriteLine("(配置里没有 Rules 段)");
+                        return 1;
+                    }
                 }
+                int n = 0;
+                foreach (var r in arr.EnumerateArray())
+                {
+                    n++;
+                    string name = r.TryGetProperty("name", out var a1) ? (a1.GetString() ?? "") : "";
+                    string proc = r.TryGetProperty("process", out var a2) ? (a2.GetString() ?? "") : "";
+                    string en = "启用";
+                    if (r.TryGetProperty("enabled", out var a3))
+                    {
+                        en = a3.ValueKind == System.Text.Json.JsonValueKind.False ? "停用" : "启用";
+                    }
+                    Console.WriteLine("  " + n + ". [" + en + "] "
+                        + (name.Length > 0 ? name : "(无名)")
+                        + "   进程=" + (proc.Length > 0 ? proc : "*"));
+                }
+                Console.WriteLine("共 " + n + " 条规则");
+                return 0;
             }
-            Console.WriteLine("共 " + count + " 条规则");
-            return 0;
+            catch (Exception e)
+            {
+                Console.WriteLine("★ 解析配置失败：" + e.Message);
+                return 2;
+            }
         }
 
         private static int Report()
