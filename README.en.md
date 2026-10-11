@@ -291,3 +291,19 @@ If you scrolled all the way down from the Releases page, you have probably alrea
 The name is borrowed from *Red Star Over China*. Not as a statement of any kind, but because in that book a red star is precisely something you can still see **where it is darkest**. What WARDEN does is smaller than that: it stands behind your windows and pushes back the things that should not have popped up. When it gets dark, it is still there. That is all.
 
 So the next time you notice the star lit up, that is it being on duty. You do not have to click it, and it will not interrupt you.
+
+---
+
+## Screenshots
+
+> Captured from a real 0.2.5 run (Windows 10 19045).
+
+### Log viewer
+
+![Log viewer](docs/截图/logview.png)
+
+### Settings
+
+![Settings](docs/截图/settings.png)
+![Language tab](docs/截图/设置界面-语言页签.png)
+![English UI](docs/截图/设置界面-英文界面.png)
