@@ -3,14 +3,33 @@
 #    之前发生过"仓库被整空"的事故 ✗ 从此构建脚本必须：
 #      ① 先打一份快照（只增不删）
 #      ② 只允许删除 dist\ / bin\ / obj\ 三处，绝不碰源码与 .git
-# ============================================================================
-$RepoRoot = $PSScriptRoot
-$snap = Join-Path (Split-Path $RepoRoot -Parent) 'WARDEN-快照'
-try {
-    New-Item -ItemType Directory -Path $snap -Force | Out-Null
+# ---- 安全闸：构建前把【源码】备一份（2026-10-11 重做 ✓）
+#   原来：把【整个仓库】压成一个 zip ✗ 含 bin/obj/dist/publish ✓
+#        实测每份 1.5 GB ✗ 一天构建 6 次 = 白吃 9 GB 磁盘 ✓
+#   现在：只备源码（排构建产物）+ 只留最近 5 份 + 5 分钟内不重复备 ✓
+$snap = Join-Path $env:USERPROFILE 'Documents\WARDEN-快照'
+New-Item -ItemType Directory -Path $snap -Force | Out-Null
+$last = Get-ChildItem $snap -File -Filter 'WARDEN-*-构建前.zip' -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($last -and ((Get-Date) - $last.LastWriteTime).TotalMinutes -lt 5) {
+    Write-Host '[安全闸] 5 分钟内已备过，跳过（省磁盘 ✓）' -ForegroundColor DarkGray
+} else {
     $z = Join-Path $snap ('WARDEN-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-构建前.zip')
-    Compress-Archive -Path (Join-Path $RepoRoot '*') -DestinationPath $z -CompressionLevel Optimal -Force
-    Write-Host ('[安全闸] 构建前快照: ' + (Split-Path $z -Leaf)) -ForegroundColor DarkGray
+    $stage = Join-Path $env:TEMP ('warden_src_' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+    $exD = @('bin', 'obj', 'publish', 'dist', 'release', '.vs', 'TestResults', '__pycache__')
+    $exF = @('*.exe', '*.dll', '*.pdb', '*.zip', '*.7z', '*.nupkg', '*.lib', '*.exp')
+    $rc = @($RepoRoot, $stage, '/E', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/R:1', '/W:1')
+    foreach ($x in $exD) { $rc += '/XD'; $rc += $x }
+    foreach ($x in $exF) { $rc += '/XF'; $rc += $x }
+    & robocopy @rc | Out-Null
+    Compress-Archive -Path "$stage\*" -DestinationPath $z -CompressionLevel Optimal -Force
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    $mb = [math]::Round((Get-Item $z).Length / 1MB, 1)
+    Write-Host ('[安全闸] 源码快照: ' + (Split-Path $z -Leaf) + '  ' + $mb + ' MB ✓') -ForegroundColor DarkGray
+    Get-ChildItem $snap -File -Filter 'WARDEN-*-构建前.zip' | Sort-Object LastWriteTime -Descending |
+        Select-Object -Skip 5 | ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
+}
 } catch {
     Write-Host ('[安全闸] 快照失败（继续构建，但请留意）: ' + $_.Exception.Message) -ForegroundColor Yellow
 }
