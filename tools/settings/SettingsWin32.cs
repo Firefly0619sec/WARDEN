@@ -431,6 +431,8 @@ namespace WardenSettings
         // ====================================================================
         private static double _scale = 1.0;
         private static IntPtr _clsMainPtr, _clsPagePtr, _clsRulesPtr;
+        // ★ 2026-10-11：只构建一次 UI 的开关（防 WM_CREATE 递归 ✗ 见 WM_CREATE 分支注释 ✓）
+        private static bool _controlsBuilt;
         private static IntPtr _main, _tabs, _bottom, _status;
         private static IntPtr _pageLang, _pageRules, _pageProtect, _pageAction, _pageLists, _pageSafety, _pageLog;
         private static IntPtr _hostRules;      // 规则页的可滚动容器（其余页直接用页面窗口 ✓）
@@ -615,8 +617,27 @@ namespace WardenSettings
             {
                 case WM_CREATE:
                     L("收到 WM_CREATE ✓ hwnd=" + h);
-                    BuildControls(h);
-                    L("BuildControls 完成 ✓");
+                    // ★★★ 2026-10-11 修（界面出不来的总病根：创建风暴 / 无限递归）
+                        //   原来【每个窗口一创建】就调 BuildControls(h) ✗
+                        //   而 BuildControls 自己会创建窗口（底栏/页签/控件 ✓）
+                        //   → 那些窗口又发 WM_CREATE → 又调 BuildControls → 递归 ✗✗
+                        //   实测：同一批失败重复几百次 ✓ 且 _main 被反复覆盖 ✗ → 主窗句柄丢失 → 永不显示 ✓
+                        //   修法：只构建一次（第一个 WM_CREATE 的窗口就是主窗 ✓）
+                        if (!_controlsBuilt)
+                        {
+                            _controlsBuilt = true;
+                            _main = h;
+                            BuildControls(h);
+                            L("BuildControls 完成 ✓（一次性 ✓ 不再递归 ✓）");
+                            if (_main != IntPtr.Zero)
+                            {
+                                ShowWindow(_main, SW_SHOW);
+                                UpdateWindow(_main);
+                                SetForegroundWindow(_main);
+                                L("主窗已显示 ✓ ShowWindow(SW_SHOW) + UpdateWindow ✓");
+                            }
+                        }
+                        else { L("跳过重复 WM_CREATE 的构建 ✓（防递归 ✓）"); }
                     return IntPtr.Zero;
 
                 case WM_COMMAND:
