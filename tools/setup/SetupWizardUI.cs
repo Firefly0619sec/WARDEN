@@ -29,8 +29,8 @@ namespace WardenSetup
         private CheckBox _ckRed = new CheckBox();
         private TextBox _log = new TextBox();
         // ★ 安装进度（用户要求：离线安装包也要有进度条 ✓）
-        private readonly ProgressBar _bar = new ProgressBar();
-        private readonly Label _step = new Label();
+        private ProgressBar _bar = new ProgressBar();
+        private Label _step = new Label();
         private volatile bool _installing;
 
         private bool DesktopWanted => _ckDesktop.Checked;
