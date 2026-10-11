@@ -51,11 +51,15 @@ namespace WardenSetup
             MinimizeBox = false;
             Font = new Font("Microsoft YaHei UI", 9F);
 
-            var top = new Panel { Dock = DockStyle.Top, Height = 68 };
-            top.Paint += (s, e) =>
+            // ★ 标题栏蓝色背景必须用 Panel.BackColor ✗
+            //   以前是给 Panel 手绘蓝色 ✓ 但 Label 不会继承"手绘"的底色 ✗
+            //   → Label 自己刷成浅灰 ✓ 白字压在浅灰上 = 看不清 ✓（用户实测反馈 ✓）
+            //   设 BackColor 后子控件会继承 ✓ 白字就清楚了 ✓
+            var top = new Panel
             {
-                using var b = new SolidBrush(Color.FromArgb(0, 120, 212));
-                e.Graphics.FillRectangle(b, top.ClientRectangle);
+                Dock = DockStyle.Top,
+                Height = 68,
+                BackColor = Color.FromArgb(0, 120, 212),
             };
             _title.SetBounds(20, 12, 700, 26);
             _title.ForeColor = Color.White;
