@@ -422,6 +422,3 @@ WARDEN —— 常规手段已确认失效=WARDEN — normal measures have been c
 WARDEN 首次运行=WARDEN first run
 help.sec.license=Open-source licences
 help.sec.license.body=WARDEN itself is AGPL-3.0-or-later. You may read, modify and redistribute it; changes must stay under AGPL.\n\nThe installers bundle the .NET runtime, which is distributed under the MIT license. The full notice texts are in the "第三方声明" folder next to the program, and in THIRD-PARTY-NOTICES.md in the repository.\n\nNothing else third-party is included: no NuGet dependencies, no analytics, no ad SDK.
- 条规则：\n\n「是」= 追加到现有规则\n「否」= 替换现有规则\n「取消」= 什么都不做= rules:\n\nYes = append to the existing rules\nNo = replace the existing rules\nCancel = do nothing
-「是」= 先开【演习模式】：只记日志、不动手（推荐 ✓ 先看清它会拦谁）=Yes = start in drill mode: log only, never act (recommended — see what it would block first)
-「否」= 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓=No = start blocking windows now (you can switch back any time on the Protection tab in Settings)
