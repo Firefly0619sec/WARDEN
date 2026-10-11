@@ -14,7 +14,7 @@
 #
 #  用法：
 #     pwsh -File tools\release.ps1                       # 用现有版本号
-#     pwsh -File tools\release.ps1 -Version 0.2.6 # 指定版本（会写回 csproj）
+#     pwsh -File tools\release.ps1 -Version 0.3.3 # 指定版本（会写回 csproj）
 # ============================================================================
 param(
     [string]$Version = ''
@@ -28,7 +28,7 @@ Write-Host ('[发布] 仓库: ' + $repo) -ForegroundColor Cyan
 $csproj = Join-Path $repo 'src\WARDEN.csproj'
 $projText = Get-Content $csproj -Raw
 $cur = [regex]::Match($projText, '<Version>([^<]+)</Version>').Groups[1].Value
-if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.2.6' }
+if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.3.3' }
 if ($Version -ne '' -and $Version -ne $cur) {
     Write-Host ('[发布] 版本 ' + $cur + ' → ' + $Version) -ForegroundColor Yellow
     $projText = [regex]::Replace($projText, '<Version>[^<]*</Version>', '<Version>' + $Version + '</Version>')
@@ -47,7 +47,7 @@ if ($LASTEXITCODE -ne 0) { throw '[发布] 构建失败，中止' }
 
 # ★ 2026-10-11 修：build.ps1 的 Step 5「打包到 dist\」会【清空 dist\】✗
 #   于是它在 4.5 步组装好的 dist\app\ 会被一起删掉 ✓
-#   → release.ps1 到这里打载荷时就找不到 dist\app\* ✗（0.2.6 卡在这里 ✓）
+#   → release.ps1 到这里打载荷时就找不到 dist\app\* ✗（0.3.3 卡在这里 ✓）
 #   所以打包前【重新组装一次载荷】✓（脚本是幂等的 ✓ 只是再拷一遍 ✓）
 Write-Host '[发布] 组装载荷（重新生成 dist\app）…' -ForegroundColor Cyan
 & pwsh -NoProfile -File (Join-Path $repo 'tools\tools-build.ps1') | Out-Host

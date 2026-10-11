@@ -80,7 +80,7 @@ namespace WardenSetup
         public static void Begin(string title)
         {
             Line("====", "================ " + title + " ================");
-            Line("====", "version=0.2.6"
+            Line("====", "version=0.3.3"
                 + "  os=" + Environment.OSVersion.VersionString
                 + "  clr=" + Environment.Version
                 + "  exe=" + Environment.ProcessPath);
