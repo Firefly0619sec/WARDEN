@@ -14,7 +14,7 @@ namespace WardenUninstall
     internal sealed class UninstallForm : Form
     {
         public static bool Cancelled;
-        // 复选框真实状态（只有真勾了才是 true）—— 修 0.2.6 里「确认即删数据」的 bug
+        // 复选框真实状态（只有真勾了才是 true）—— 修 0.2.5 里「确认即删数据」的 bug
         public static bool Purge;
 
         private readonly CheckBox _ckPurge = new CheckBox();

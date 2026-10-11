@@ -69,7 +69,7 @@ namespace WardenUninstall
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                // 0.2.6 修（实测出来的真 bug，0.2.6 存在）：
+                // 0.2.6 修（实测出来的真 bug，0.2.5 存在）：
                 //   Ask 的返回值是「用户是否确认卸载」，不是「是否删除数据」
                 //   原来直接赋给 purge，导致不勾选复选框也会删除配置与日志
                 bool confirmed = UninstallForm.Ask(purge);
