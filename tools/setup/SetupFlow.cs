@@ -106,10 +106,43 @@ namespace WardenSetup
         }
 
         // ================================================================ 安装
+        /// <summary>★ 改名前的旧文件名（2026-10-11 命名清理时产生的 ✓）
+        ///   升级安装必须把它们删掉 ✗ 否则安装目录里会残留：
+        ///     WARDEN-Settings.exe（47 MB ✗）等 6 个工具 + 3 个旧名图标 ✓
+        ///   只删【我们自己以前的产物】✗ 绝不动用户数据与配置 ✓</summary>
+        private static readonly string[] LegacyNames =
+        {
+            "WARDEN-Settings.exe", "WARDEN-Help.exe", "WARDEN-LogView.exe",
+            "WARDEN-Updater.exe", "WARDEN-Uninstaller.exe", "WARDEN-RedTeam.exe",
+            "WARDEN.ico", "WARDEN-paused.ico", "WARDEN-emergency.ico",
+        };
+
+        /// <summary>清理旧名文件（只删存在且确实是我们产物的那些 ✓）</summary>
+        internal static void CleanLegacy(string dir, Action<string>? note = null)
+        {
+            try
+            {
+                foreach (var n in LegacyNames)
+                {
+                    var f = Path.Combine(dir, n);
+                    if (!File.Exists(f)) { continue; }
+                    try
+                    {
+                        long sz = new FileInfo(f).Length;
+                        File.Delete(f);
+                        note?.Invoke("已清理旧文件 " + n + "（" + (sz / 1048576.0).ToString("0.0") + " MB）");
+                    }
+                    catch (Exception e) { note?.Invoke("旧文件删不掉（可能被占用 ✓）：" + n + " · " + e.Message); }
+                }
+            }
+            catch { }
+        }
+
         public static bool Install(string dir, bool desktop, bool autostart,
                                   bool redTeam, out string error,
                                   Action<int, string>? progress = null)
         {
+            CleanLegacy(dir, note: null);   // ★ 先清掉改名前的旧文件（升级安装 ✓）
             error = string.Empty;
             // ★ 进度回调（不传也能用 ✓ 界面那边传进来就显示进度条 ✓）
             void Rep(int pct, string msg) { try { progress?.Invoke(pct, msg); } catch { } }
