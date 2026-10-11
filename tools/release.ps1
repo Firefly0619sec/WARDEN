@@ -45,6 +45,19 @@ Write-Host '[发布] 全量构建（build.ps1）…' -ForegroundColor Cyan
 & pwsh -NoProfile -File (Join-Path $repo 'build.ps1')
 if ($LASTEXITCODE -ne 0) { throw '[发布] 构建失败，中止' }
 
+# ★ 2026-10-11 修：build.ps1 的 Step 5「打包到 dist\」会【清空 dist\】✗
+#   于是它在 4.5 步组装好的 dist\app\ 会被一起删掉 ✓
+#   → release.ps1 到这里打载荷时就找不到 dist\app\* ✗（0.2.6 卡在这里 ✓）
+#   所以打包前【重新组装一次载荷】✓（脚本是幂等的 ✓ 只是再拷一遍 ✓）
+Write-Host '[发布] 组装载荷（重新生成 dist\app）…' -ForegroundColor Cyan
+& pwsh -NoProfile -File (Join-Path $repo 'tools\tools-build.ps1') | Out-Host
+if ($LASTEXITCODE -ne 0) { throw '[发布] 载荷组装失败，中止（不发缺东西的包 ✓）' }
+
+# ★ 2026-10-11 修：build.ps1 的 Step 5 清空 dist\ 时，把上面 ① 建的
+#   dist\release\<版本>\ 目录也一起删了 ✗ → 后面 Copy-Item 报"找不到路径"✓
+#   → 这里重建一次产物目录 ✓
+New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
 # ---------------------------------------------------------------- ③ 打安装包
 Write-Host '[发布] 打安装包…' -ForegroundColor Cyan
 $setupDir = Join-Path $repo 'tools\setup'

@@ -75,10 +75,14 @@ foreach ($td in $toolDirs) {
     }
     Write-Host ("  ✓ tools\" + $td + " 源码在（" + $cs.Count + " 个 .cs）") -ForegroundColor DarkGray
 }
-param(
-    [switch]$SkipSign,
-    [switch]$NoBuild
-)
+# ---------------------------------------------------------------------------
+# ★ 2026-10-11 修：这里原来有一个【第二个 param 块】✗
+#   PowerShell 规定 param 必须是脚本的第一条语句 ✗
+#   放在中间会被当成命令执行 → 构建时一直报"术语 param 不被识别"✓
+#   而且 -SkipSign / -NoBuild 两个开关根本没绑上 ✓
+#   → 已删除（脚本本来也不依赖外部传参 ✓ 默认就是全量构建 ✓）
+#   若以后要用开关，请把 param 块挪到文件最顶端（注释之后 ✓）
+# ---------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -202,6 +206,18 @@ else {
 #     解法：把发布需要的东西全部收拢到 dist\ ✓
 #       用户在 dist\ 里双击 WARDEN.exe，
 #       点托盘菜单就能正确拉起设置界面 ✓
+# ------------------------------------------- 4.5 编译各工具 + 组装载荷（★ 补写）
+# ★ 2026-10-11：build.ps1 原来【完全没有】这一步 ✗
+#   只编了主程序与设置界面 ✓ → 于是 release.ps1 打载荷时
+#   找不到 dist\app\* → 发布链直接断掉 ✗（0.2.6 就是卡在这里 ✓）
+Write-Host ''
+Write-Host '[4.5] 编译各工具 + 组装载荷（dist\app）' -ForegroundColor Yellow
+& pwsh -NoProfile -File (Join-Path $root 'tools\tools-build.ps1')
+if ($LASTEXITCODE -ne 0) {
+    Write-Host '  ★ 工具编译或载荷组装失败 ✗ 终止构建（不发缺东西的包 ✓）' -ForegroundColor Red
+    exit 1
+}
+
 Step 5 '打包到 dist\'
 
 $dist = Join-Path $root 'dist'
