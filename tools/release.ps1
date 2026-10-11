@@ -38,6 +38,30 @@ if ($Version -ne '' -and $Version -ne $cur) {
 $ver = $cur
 $outDir = Join-Path $repo ('dist\release\' + $ver)
 New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+# ---------------------------------------------------------------- ③.5 语言包随包（2026-10-11 补）
+# ★ 缺口：Lang.cs 从 <AppContext.BaseDirectory>\lang\ 读 .txt ✓ 但载荷里一直【没有 lang\ 目录】✗
+#   → 六语言能力实际上从未随包发布 ✓（设置界面的语言切换等于只有内置 zh-Hans ✓）
+# 本段：把 WARDEN\lang\*.txt 复制进 dist\app\lang\ ✓ 并先跑一致性校验当闸门 ✓
+$langSrc = Join-Path $repo 'lang'
+$langDst = Join-Path $appDir 'lang'
+if (-not (Test-Path $langSrc)) { throw ('[发布] 找不到语言包目录 ' + $langSrc + ' ✗ 中止（不发没有语言的包 ✓）') }
+
+# 校验器在 DSH 工作区（与主仓解耦 ✓）；找不到就跳过校验但明确提示 ✓
+$parity = Join-Path $env:USERPROFILE 'Documents\deepseek-harness\default-workspace\诊断\tools\lang-parity.ps1'
+if (Test-Path $parity) {
+    Write-Host '[发布] 语言包一致性校验…' -ForegroundColor Cyan
+    & pwsh -NoProfile -File $parity -Dir $langSrc | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw '[发布] 语言包校验未通过 ✗ 中止（改包只允许逐条改 ✓）' }
+} else {
+    Write-Host ('[发布] · 没找到校验器（' + $parity + '）→ 跳过校验，但请人工确认键集合一致 ✓') -ForegroundColor Yellow
+}
+
+New-Item -ItemType Directory -Path $langDst -Force | Out-Null
+Copy-Item (Join-Path $langSrc '*.txt') $langDst -Force
+$langCount = (Get-ChildItem $langDst -File -Filter '*.txt' | Measure-Object).Count
+Write-Host ('[发布] 语言包已随包：' + $langCount + ' 个 → dist\app\lang\') -ForegroundColor Green
+if ($langCount -lt 6) { throw ('[发布] 语言包只有 ' + $langCount + ' 个（期望 6 个）✗ 中止') }
 Write-Host ('[发布] 版本: ' + $ver + '   产物目录: ' + $outDir) -ForegroundColor Cyan
 
 # ---------------------------------------------------------------- ② 全量构建
