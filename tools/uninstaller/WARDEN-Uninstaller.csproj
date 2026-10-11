@@ -17,7 +17,7 @@
     <AssemblyTitle>WARDEN 卸载程序</AssemblyTitle>
     <Product>WARDEN</Product>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-    <Version>0.2.4</Version>
+    <Version>0.2.5</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

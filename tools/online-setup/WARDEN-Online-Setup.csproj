@@ -11,7 +11,7 @@
     <RootNamespace>WardenOnlineSetup</RootNamespace>
     <AssemblyTitle>WARDEN 在线安装器</AssemblyTitle>
     <Product>WARDEN</Product>
-    <Version>0.2.4</Version>
+    <Version>0.2.5</Version>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <DebugType>none</DebugType>
   </PropertyGroup>

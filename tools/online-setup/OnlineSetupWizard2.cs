@@ -37,7 +37,7 @@ namespace WardenOnlineSetup
     {
         private static string Owner = "Firefly0619sec";   // ★ 不写死：--repo 可覆盖 ✓
         private static string Repo = "WARDEN";             // ★ 不写死 ✓
-        private const string Version = "0.2.4";
+        private const string Version = "0.2.5";
         private static string ApiLatest => $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
         private static string ApiList => $"https://api.github.com/repos/{Owner}/{Repo}/releases";
         private static string Releases => $"https://github.com/{Owner}/{Repo}/releases";

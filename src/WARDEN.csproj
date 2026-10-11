@@ -37,10 +37,10 @@
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
 
     <!-- 版本：测试阶段，按语义化版本 + Beta 标识 -->
-    <Version>0.2.4</Version>
-    <AssemblyVersion>0.2.4</AssemblyVersion>
-    <FileVersion>0.2.4</FileVersion>
-    <InformationalVersion>0.2.4</InformationalVersion>
+    <Version>0.2.5</Version>
+    <AssemblyVersion>0.2.5</AssemblyVersion>
+    <FileVersion>0.2.5</FileVersion>
+    <InformationalVersion>0.2.5</InformationalVersion>
 
     <!-- ★ 许可：AGPL-3.0-or-later（已与用户确认；2026-10-10 由 GPL 升级，堵 SaaS 云端规避） -->
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>

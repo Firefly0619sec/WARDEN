@@ -14,7 +14,7 @@
 #
 #  用法：
 #     pwsh -File tools\release.ps1                       # 用现有版本号
-#     pwsh -File tools\release.ps1 -Version 0.2.4 # 指定版本（会写回 csproj）
+#     pwsh -File tools\release.ps1 -Version 0.2.5 # 指定版本（会写回 csproj）
 # ============================================================================
 param(
     [string]$Version = ''
@@ -28,7 +28,7 @@ Write-Host ('[发布] 仓库: ' + $repo) -ForegroundColor Cyan
 $csproj = Join-Path $repo 'src\WARDEN.csproj'
 $projText = Get-Content $csproj -Raw
 $cur = [regex]::Match($projText, '<Version>([^<]+)</Version>').Groups[1].Value
-if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.2.4' }
+if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.2.5' }
 if ($Version -ne '' -and $Version -ne $cur) {
     Write-Host ('[发布] 版本 ' + $cur + ' → ' + $Version) -ForegroundColor Yellow
     $projText = [regex]::Replace($projText, '<Version>[^<]*</Version>', '<Version>' + $Version + '</Version>')
