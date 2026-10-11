@@ -391,19 +391,21 @@ namespace WardenSetup
                 _step.Text = "安装完成 ✓";
                 _title.Text = "第 3 步 / 3：安装完成";
                 _next.Text = "完成";
-                if (MessageBox.Show(this, "安装完成 ✓\n\n现在就启动 WARDEN 吗？",
-                        "WARDEN 安装", MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information) == DialogResult.Yes)
-                {
-                    try
-                    {
-                        System.Diagnostics.Process.Start(
-                            new System.Diagnostics.ProcessStartInfo(
-                                Path.Combine(_dir, "WARDEN.exe"))
-                            { WorkingDirectory = _dir, UseShellExecute = true });
-                    }
-                    catch { }
-                }
+_next.Text = "启动 WARDEN";
+                  _done = true;
+                  // ★ 用户 2026-10-11 反馈：别用弹窗问"要不要启动" ✗ 直接做进安装器 ✓
+                  //   完成页上放一个勾选框 ✓ 点"启动 WARDEN" → 启动程序 + 安装器自己关闭 ✓
+                  if (_ckLaunch.Parent == null)
+                  {
+                      _ckLaunch.Text = "立即启动 WARDEN（推荐：装完就能拦住弹窗）";
+                      _ckLaunch.Checked = true;
+                      _ckLaunch.AutoSize = true;
+                      _ckLaunch.ForeColor = System.Drawing.Color.FromArgb(32, 32, 32);
+                      _ckLaunch.Location = new System.Drawing.Point(22, 66);
+                      _body.Controls.Add(_ckLaunch);
+                  }
+                  _ckLaunch.Visible = true;
+                  _ckLaunch.BringToFront();
             }
             else
             {

@@ -463,7 +463,22 @@ namespace WardenSetup
                     Environment.SpecialFolder.System);
                 foreach (var n in UcrtNeeded)
                 {
-                    if (!File.Exists(Path.Combine(sys, n))) missing.Add(n);
+                    // ★★ 这里原来是 File.Exists ✗ 结果【所有 Win10/11 都会误报"缺少 7 个系统组件"】✗✗
+                    //    原因：Windows 10 起 api-ms-win-crt-* 是【虚拟 API 集】（ApiSet）✓
+                    //    磁盘上根本没有实体文件 ✓ File.Exists 永远 false ✓ 而 LoadLibrary 能成功 ✓
+                    //    实测：这台能正常跑 WARDEN 的机器被报"缺少 7 个系统组件"✗ 就是这个原因 ✓
+                    bool ok = false;
+                    try
+                    {
+                        if (System.Runtime.InteropServices.NativeLibrary.TryLoad(n, out var h))
+                        {
+                            ok = true;
+                            try { System.Runtime.InteropServices.NativeLibrary.Free(h); } catch { }
+                        }
+                    }
+                    catch { }
+                    if (!ok && File.Exists(Path.Combine(sys, n))) { ok = true; }   // 兜底：老系统（Win7/8.1）确实有实体文件 ✓
+                    if (!ok) missing.Add(n);
                 }
             }
             catch (Exception e)
