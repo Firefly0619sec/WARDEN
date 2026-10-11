@@ -32,6 +32,9 @@ namespace WardenSetup
         private ProgressBar _bar = new ProgressBar();
         private Label _step = new Label();
         private volatile bool _installing;
+        // ★ 完成页的"立即启动"（用户 2026-10-11 反馈：别用弹窗问 ✗ 直接做进安装器 ✓）
+        private CheckBox _ckLaunch = new CheckBox();
+        private bool _done;
 
         private bool DesktopWanted => _ckDesktop.Checked;
         private bool AutostartWanted => _ckAuto.Checked;
@@ -93,6 +96,25 @@ namespace WardenSetup
 
         private void Next()
         {
+            // ★ 已经装完了（用户点的是"启动 WARDEN"）→ 按勾选启动，然后安装器自己关闭 ✓
+            if (_done)
+            {
+                if (_ckLaunch.Checked)
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                            Path.Combine(_dir, "WARDEN.exe"))
+                        {
+                            WorkingDirectory = _dir,
+                            UseShellExecute = true,
+                        });
+                    }
+                    catch { }
+                }
+                Close();
+                return;
+            }
             if (_page == 0)
             {
                 if (!_env.CanInstall)
