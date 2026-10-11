@@ -28,7 +28,7 @@ Write-Host ('[发布] 仓库: ' + $repo) -ForegroundColor Cyan
 $csproj = Join-Path $repo 'src\WARDEN.csproj'
 $projText = Get-Content $csproj -Raw
 $cur = [regex]::Match($projText, '<Version>([^<]+)</Version>').Groups[1].Value
-if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.3.3' }
+if ([string]::IsNullOrWhiteSpace($cur)) { $cur = '0.3.4' }
 if ($Version -ne '' -and $Version -ne $cur) {
     Write-Host ('[发布] 版本 ' + $cur + ' → ' + $Version) -ForegroundColor Yellow
     $projText = [regex]::Replace($projText, '<Version>[^<]*</Version>', '<Version>' + $Version + '</Version>')
@@ -152,6 +152,29 @@ foreach ($it in $items) {
 }
 Set-Content -Path (Join-Path $outDir 'SHA256SUMS.txt') -Value ($sums -join "`n") -Encoding utf8
 
+# ---------------------------------------------------------------- ④.5 GPG 签名（来源认证 ✓ 2026-10-11 信息安全体检补）
+# ★ 为什么必须有：光有 SHA256SUMS.txt 等于没认证 ✗
+#   能改下载页的人（或 GitHub 账号被盗 ✗）可以【同时换掉 exe 和校验和】✗ 用户怎么对都对不上 ✓
+#   → 用发布者的 GPG 私钥签一份 SHA256SUMS.txt.asc ✓ 用户拿公钥指纹一验就知道是不是真货 ✓
+# ★ 签名失败一律【中止发布】✗ 绝不发一个"说是签了其实没签"的版本 ✓
+$fp = 'EBFB6B895D8EEC8F59CE0A26E23876CBBDAE330F'     # 与提交签名同一把钥匙 ✓
+$sumFile = Join-Path $outDir 'SHA256SUMS.txt'
+$ascFile = Join-Path $outDir 'SHA256SUMS.txt.asc'
+Remove-Item $ascFile -Force -ErrorAction SilentlyContinue
+Write-Host '[发布] GPG 签名 SHA256SUMS.txt…' -ForegroundColor Cyan
+$gpg = (Get-Command gpg -ErrorAction SilentlyContinue)
+if (-not $gpg) { throw '[发布] 找不到 gpg ✗ 中止（不发没有来源认证的包 ✓）' }
+# 口令走 gpg-agent（保险库预置过 ✓）——不落命令行 ✗ 不进环境变量 ✗
+& gpg --batch --yes --armor --local-user $fp --detach-sign --output $ascFile $sumFile 2>&1 | Out-Host
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ascFile)) {
+    throw '[发布] GPG 签名失败 ✗ 中止（先跑 诊断\tools\gpg_passvault.py --preset 把口令预置进 agent ✓）'
+}
+& gpg --verify $ascFile $sumFile 2>&1 | Out-Host
+if ($LASTEXITCODE -ne 0) { throw '[发布] 签名自校验没过 ✗ 中止' }
+Write-Host ('    ✓ SHA256SUMS.txt.asc 已生成并自校验通过 ✓ 指纹 ' + $fp.Substring(0, 16) + '…') -ForegroundColor Green
+Write-Host ''
+Write-Host '★ 首次发布前记得跑一次闸门（防同源 bug 再犯 ✓）：pwsh -File tools\pre-release-check.ps1' -ForegroundColor DarkGray
+
 # ---------------------------------------------------------------- ⑤ 发布说明草稿
 $notes = @(
     '# WARDEN ' + $ver,
@@ -168,7 +191,23 @@ $notes = @(
     '',
     '1. 把 `WARDEN-Setup.exe` 拷到目标机器（离线也能装 ✓）',
     '2. 双击 → 按向导走（默认装在 `%LOCALAPPDATA%\Programs\WARDEN`，不需要管理员权限 ✓）',
-    '3. 想让人自己验证来源：对照上面的 SHA256 ✓',
+    '',
+    '## 怎么验证来源（★ 别只看哈希 ✗ 哈希本身也可能被一起换掉 ✓）',
+    '',
+    '1. 导入发布者公钥（README 里也有同一份指纹 ✓）：',
+    '   ```',
+    '   gpg --recv-keys ' + $fp,
+    '   ```',
+    '2. 校验校验和文件【本身】的签名（这一步才是关键 ✓）：',
+    '   ```',
+    '   gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt',
+    '   ```',
+    '3. 再对文件算哈希，和 SHA256SUMS.txt 里的逐条比：',
+    '   ```',
+    '   sha256sum -c SHA256SUMS.txt        # Linux / Git Bash',
+    '   Get-FileHash WARDEN-Setup.exe -Algorithm SHA256   # Windows PowerShell',
+    '   ```',
+    '4. 签名在这里 → `SHA256SUMS.txt.asc` ✓（发布者指纹：`' + $fp + '`）',
     '',
     '## 许可证',
     '',

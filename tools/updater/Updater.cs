@@ -263,12 +263,31 @@ namespace WardenUpdater
                     note?.Invoke("自检基线：配置里没有 expected_self_hash ✓ 首次运行会自动写入 ✓");
                     return;
                 }
-                string now = re.Replace(txt, "$1" + hash + "$3", 1);
+                // ★★★ 2026-10-11 信息安全体检抓到的【数据破坏级】bug ✗✗（与安装器同源 ✗）
+                //   原来替换串写成  "$1" + hash + "$3"  ✗
+                //   .NET 的 Regex.Replace 会把 $ 后面【连续数字】整段当成组号 ✗
+                //   → 新哈希以数字开头（本次 4164b4df…）就拼成 "$14164b4df…" ✗
+                //   → 没有 14164 号捕获组 → 按字面量原样吐出 ✗
+                //   → 配置那行变成   $14164b4dfe8523da…a5b8",   ✗ 键名与引号一起被吃掉 ✗
+                //   → JSON 语法错误 ✗ 主程序下次读配置直接失败 ✗（用户："更新完就打不开了"✗）
+                //   ★ 这段逻辑在 setup 与 updater 里各抄了一份 ✗ 所以我上一轮只修了 setup ✓
+                //     这一轮按体检清单把 updater 这份也修掉 ✓（并加回归闸门防再犯 ✓）
+                //   修法两条：① 组引用一律加花括号 ${1} / ${3} ✓
+                //             ② 替换后【自检】✗ 不满足就一个字都不写 ✓（宁可不动也不能写坏 ✓）
+                string now = re.Replace(txt, "${1}" + hash + "${3}", 1);
+                if (!System.Text.RegularExpressions.Regex.IsMatch(
+                        now, "\"expected_self_hash\"\\s*:\\s*\"" + hash + "\""))
+                {
+                    note?.Invoke("★ 自检基线：替换后自检没过 → 不写配置文件 ✓（绝不写坏用户的配置 ✓）");
+                    return;
+                }
                 if (now == txt && txt.Contains(hash))
                 {
                     note?.Invoke("自检基线：已经是最新的 ✓");
                     return;
                 }
+                // ★ 写之前先留一份原样备份 ✓（真出事能一字不差退回去 ✓）
+                try { File.Copy(cfg, cfg + ".setup-bak", true); } catch { }
                 File.WriteAllText(cfg, now);
                 note?.Invoke("✓ 已把自检基线更新为新版本 exe 的 SHA256（" + hash.Substring(0, 16) + "…）");
             }
@@ -282,6 +301,12 @@ namespace WardenUpdater
         {
             try
             {
+                // ★★★ 2026-10-11 信息安全体检新增：反降级门限 ✗
+                //   【为什么】更新包里 WARDEN.exe 的版本必须【不低于】当前已安装的版本 ✓
+                //   → 否则拿到一个旧版本包就等于被降级 ✗（旧版可能带着已知漏洞 ✓
+                //     而且它会把 expected_self_hash 也改成旧 exe 的 ✓ 用户完全看不出来 ✓）
+                //   完全无法比对（读不到版本）时【不拦】✓ 只记一条日志 ✓（不误伤正常升级 ✓）
+                if (!CheckNotDowngrade(zip)) { return false; }
                 using var archive = ZipFile.OpenRead(zip);
                 int n = 0;
                 string root = Path.GetFullPath(InstallDir);
@@ -304,7 +329,7 @@ namespace WardenUpdater
                     try { File.SetLastWriteTimeUtc(target, DateTime.UtcNow); } catch { }
                     n++;
                 }
-                Log("已覆盖 " + n + " 个文件 ✓");
+                Log("已解压 " + n + " 个文件 ✓");
             RefreshSelfBaseline(InstallDir);   // ★ 刷新自检基线（更新后必须 ✓）
                 return n > 0;
             }
@@ -312,6 +337,59 @@ namespace WardenUpdater
             {
                 Log("★ 解压失败: " + e.Message);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// ★ 反降级门限（2026-10-11 信息安全体检新增 ✓）
+        ///   规则：包里 WARDEN.exe 的 FileVersion 必须 ≥ 已安装 WARDEN.exe 的 ✓
+        ///        读不到任何一边 → 放行（只记日志 ✓ 绝不误伤正常升级 ✓）
+        ///       新版更低 → 拒绝更新 + 明确告诉用户 ✓（不静默 ✗）
+        /// </summary>
+        private static bool CheckNotDowngrade(string zip)
+        {
+            try
+            {
+                string installed = Path.Combine(InstallDir, "WARDEN.exe");
+                if (!File.Exists(installed)) { Log("反降级：还没有已安装的 WARDEN.exe ✓ 跳过比对"); return true; }
+                var vOld = FileVersionInfo.GetVersionInfo(installed).FileVersion;
+                if (string.IsNullOrWhiteSpace(vOld)) { Log("反降级：读不到已安装版本 ✓ 跳过比对"); return true; }
+
+                // 从 zip 里把 WARDEN.exe 读成临时文件再读版本（不改动安装目录 ✓）
+                string tmp = Path.Combine(Path.GetTempPath(), "warden-upd-probe-" + Guid.NewGuid().ToString("N") + ".exe");
+                try
+                {
+                    using (var a = ZipFile.OpenRead(zip))
+                    {
+                        ZipArchiveEntry? e = null;
+                        foreach (var x in a.Entries)     // ★ 不引 System.Linq ✓ 手写循环 ✓
+                        {
+                            if (string.Equals(x.FullName, "WARDEN.exe", StringComparison.OrdinalIgnoreCase)) { e = x; break; }
+                        }
+                        if (e == null) { Log("反降级：包里没有 WARDEN.exe ✓ 跳过比对"); return true; }
+                        e.ExtractToFile(tmp, overwrite: true);
+                    }
+                    var vNew = FileVersionInfo.GetVersionInfo(tmp).FileVersion;
+                    if (string.IsNullOrWhiteSpace(vNew)) { Log("反降级：读不到包里版本 ✓ 跳过比对"); return true; }
+                    var a1 = new Version(vOld.Split('+')[0]);
+                    var a2 = new Version(vNew.Split('+')[0]);
+                    if (a2 < a1)
+                    {
+                        Log("★★ 拒绝更新：这是【降级】✗ 包里 " + vNew + " < 已安装 " + vOld
+                            + " ✓ 已中止，一个文件都没动 ✓");
+                        Win32Ui.Msg("拒绝更新：这是一个更旧的版本 ✗\n\n包里：" + vNew + "\n已装：" + vOld
+                             + "\n\n降级会让已知问题回来 ✓ 已中止，没有改动任何文件 ✓", "WARDEN 更新器", true);
+                        return false;
+                    }
+                    Log("反降级检查通过 ✓ 包里 " + vNew + " ≥ 已装 " + vOld);
+                    return true;
+                }
+                finally { try { File.Delete(tmp); } catch { } }
+            }
+            catch (Exception e)
+            {
+                Log("反降级检查异常（放行 ✓）：" + e.Message);
+                return true;
             }
         }
     }
