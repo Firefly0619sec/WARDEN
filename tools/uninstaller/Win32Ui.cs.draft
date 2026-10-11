@@ -34,9 +34,16 @@ namespace WardenUninstall
         private static bool _result, _defaultPurge;
         private static long _dataMb;
         private static IntPtr _hwnd, _ck, _fontBody, _fontTitle, _fontFallback;
+        private static IntPtr _clsName;   // ★ 类名的原生指针（AOT 不能放 string ✗）
         private static double _scale = 1.0;
         private static WndProcDelegate? _procRef;   // ★ 持有引用，否则委托被 GC 回收后回调即崩
 
+        // ★★ 2026-10-11 崩溃根因（第二版判断，比第一版更可信 ✓）：
+        //    Native AOT 下【内置封送器被禁用】✗
+        //    结构体里只要出现 string / bool / 数组等非 blittable 字段 ✗
+        //    首次封送就会 fail-fast（0xC0000409 ✓）
+        //    我原来把 lpszClassName 写成 string ✗ → 崩的就是这里 ✓
+        //    修法：结构体只放原生指针 ✓ 类名用 Marshal.StringToHGlobalUni 自己分配 ✓
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct WNDCLASSEXW
         {
@@ -44,7 +51,7 @@ namespace WardenUninstall
             public IntPtr lpfnWndProc;
             public int cbClsExtra, cbWndExtra;
             public IntPtr hInstance, hIcon, hCursor, hbrBackground;
-            public string? lpszMenuName, lpszClassName;
+            public IntPtr lpszMenuName, lpszClassName;   // ★ 原生 LPCWSTR（不再用 string ✗）
             public IntPtr hIconSm;
         }
         [StructLayout(LayoutKind.Sequential)] private struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public int x, y; }
@@ -120,13 +127,14 @@ namespace WardenUninstall
 
             IntPtr inst = GetModuleHandleW(null);
             _procRef = WndProc;                                              // ★ 防 GC ✓
+            _clsName = Marshal.StringToHGlobalUni(Cls);   // ★ 自己分配原生字符串 ✓
             var wc = new WNDCLASSEXW
             {
                 cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
                 lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_procRef),
                 hInstance = inst,
                 hbrBackground = (IntPtr)(COLOR_WINDOW + 1),
-                lpszClassName = Cls,
+                lpszClassName = _clsName,
             };
             RegisterClassExW(ref wc);
 
@@ -162,6 +170,7 @@ namespace WardenUninstall
             }
             if (_fontBody != IntPtr.Zero && _fontBody != _fontFallback) { DeleteObject(_fontBody); }
             if (_fontTitle != IntPtr.Zero && _fontTitle != _fontFallback && _fontTitle != _fontBody) { DeleteObject(_fontTitle); }
+            if (_clsName != IntPtr.Zero) { Marshal.FreeHGlobal(_clsName); _clsName = IntPtr.Zero; }
             return _result;
         }
 
