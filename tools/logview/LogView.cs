@@ -130,14 +130,18 @@ namespace WardenLogView
                 sb.AppendLine();
             }
 
-            string outPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                "WARDEN-日志报告-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".md");
+            string defName = "WARDEN-日志报告-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".md";
+            // ★ 规格第 9 条：「导出报告」→ 弹保存对话框（SaveFileDialog ✓ 原生 comdlg32 ✓）
+            //   旧版这里直接写桌面 ✗ 对齐规格：先让用户选路径 ✓ 用户取消就什么都不写 ✓
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            string? outPath = LogViewWin32.SaveFile(owner, "导出 WARDEN 日志报告",
+                "Markdown\0*.md\0所有文件\0*.*\0\0", "md", defName, desktop);
+            if (outPath == null) { LogViewWin32.L("导出报告：用户在保存对话框取消 ✓ 什么都没写 ✓"); return; }
             try
             {
                 File.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(false));
                 LogViewWin32.L("导出报告成功：" + outPath + "（" + sb.Length + " 字符，当前文件 " + name + "）");
-                LogViewWin32.Msg(owner, "报告已导出到桌面：\n\n" + Path.GetFileName(outPath),
+                LogViewWin32.Msg(owner, "报告已导出：\n\n" + Path.GetFileName(outPath),
                                 "WARDEN 日志查看器", true);
             }
             catch (Exception e)

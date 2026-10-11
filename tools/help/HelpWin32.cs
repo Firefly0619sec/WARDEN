@@ -61,11 +61,66 @@ namespace WardenHelp
             catch (Exception ex) { L("★ 反馈窗回调异常 msg=0x" + m.ToString("X") + " : " + ex); return DefWindowProcW(h, m, w, l); }
         }
 
+        /// <summary>
+        /// 面板窗口过程（★ 只为查清面板到底收哪些消息 / 并把底色画上 ✓）
+        /// 实测动机：内核 STATIC 类的面板既不收 WM_PAINT 也不收 WM_ERASEBKGND ✗
+        /// </summary>
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(System.Runtime.CompilerServices.CallConvStdcall) })]
+        private static IntPtr PanelWndProc(IntPtr h, uint m, IntPtr w, IntPtr l)
+        {
+            try
+            {
+                int pc = PanelColor(h);
+                if (m == WM_PAINT && pc >= 0)
+                {
+                    PAINTSTRUCT ps;
+                    IntPtr dc = BeginPaint(h, out ps);
+                    if (dc != IntPtr.Zero)
+                    {
+                        RECT rc;
+                        GetClientRect(h, out rc);
+                        FillRect(dc, ref rc, Bg(pc));
+                        if (h == _top) { DrawTopBarText(dc); }
+                        else if (h == _fbTop) { DrawFeedbackTopText(dc); }
+                        EndPaint(h, ref ps);
+                    }
+                    if (!_paintedLogged)
+                    {
+                        L("PanelWndProc 首次画到面板 hwnd=" + h + " 颜色=#" + pc.ToString("X6") + " ✓");
+                        _paintedLogged = true;
+                    }
+                    return IntPtr.Zero;
+                }
+                if (m == WM_ERASEBKGND && pc >= 0)
+                {
+                    RECT rc;
+                    GetClientRect(h, out rc);
+                    FillRect(w, ref rc, Bg(pc));
+                    if (h == _top) { DrawTopBarText(w); }
+                    else if (h == _fbTop) { DrawFeedbackTopText(w); }
+                    return (IntPtr)1;
+                }
+                // 只探测"不常来的消息"，避免刷屏 ✓
+                if (m == 0x0001 || m == 0x0018 || m == 0x0005 || m == 0x0007 || m == 0x000F || m == 0x0014)
+                {
+                    if (_panelMsgProbe < 30) { _panelMsgProbe++; L("PanelWndProc msg=0x" + m.ToString("X") + " hwnd=" + h); }
+                }
+                return DefWindowProcW(h, m, w, l);
+            }
+            catch (Exception ex) { L("★ 面板回调异常 msg=0x" + m.ToString("X") + " : " + ex); return DefWindowProcW(h, m, w, l); }
+        }
+
         // ====================================================================
         //  常量
         // ====================================================================
         private const string ClsMain = "WardenHelpWnd";
         private const string ClsFb = "WardenHelpFeedbackWnd";
+        // ★★ 2026-10-11 实测逼出来的第三个类：面板必须用自己的类 ✗
+        //   实测：内核 STATIC 类的面板【既不收 WM_PAINT 也不收 WM_ERASEBKGND】✗
+        //         （三种踢法都试过：InvalidateRect / PostMessage / SendMessage 全无效 ✓）
+        //   所以自己注册一个类，hbrBackground 直接给对应底色的刷子 →
+        //   系统在擦背景时就用它 ✓ 不依赖任何回调 ✓ 最稳 ✓
+        private const string ClsPanel = "WardenHelpPanelWnd";
 
         // 控件 ID（★ 必须放进 CreateWindowExW 的 hMenu，否则全 ID 0 → WM_COMMAND 点不动）
         private const int ID_TOC = 101;
@@ -106,7 +161,9 @@ namespace WardenHelp
         private const uint WM_CREATE = 0x0001, WM_DESTROY = 0x0002, WM_SIZE = 0x0005,
                            WM_PAINT = 0x000F, WM_CLOSE = 0x0010, WM_GETMINMAXINFO = 0x0024,
                            WM_DRAWITEM = 0x002B, WM_MEASUREITEM = 0x002C, WM_SETFONT = 0x0030,
-                           WM_COMMAND = 0x0111, WM_SETFOCUS = 0x0007, WM_CTLCOLORSTATIC = 0x0138;        private const uint LB_ADDSTRING = 0x0180, LB_SETCURSEL = 0x0186, LB_GETCURSEL = 0x0188,
+                           WM_COMMAND = 0x0111, WM_SETFOCUS = 0x0007, WM_CTLCOLORSTATIC = 0x0138,
+                           WM_ERASEBKGND = 0x0014;
+        private const uint LB_ADDSTRING = 0x0180, LB_SETCURSEL = 0x0186, LB_GETCURSEL = 0x0188,
                            LB_SETITEMHEIGHT = 0x01A0;
         private const uint CB_ADDSTRING = 0x0143, CB_GETCURSEL = 0x0147, CB_SETCURSEL = 0x014E,
                            CB_SETMINVISIBLE = 0x1701;
@@ -258,6 +315,8 @@ namespace WardenHelp
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SetWindowTextW(IntPtr h, string s);
         [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr h);
         [DllImport("user32.dll")] private static extern bool InvalidateRect(IntPtr h, IntPtr r, bool erase);
+        [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr h, out RECT r);
+        [DllImport("user32.dll")] private static extern bool RedrawWindow(IntPtr h, IntPtr r, IntPtr rgn, uint flags);
         [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr h);
         [DllImport("user32.dll")] private static extern IntPtr BeginPaint(IntPtr h, out PAINTSTRUCT ps);
         [DllImport("user32.dll")] private static extern bool EndPaint(IntPtr h, ref PAINTSTRUCT ps);
@@ -302,7 +361,7 @@ namespace WardenHelp
         private static readonly List<IntPtr> _fonts = new();
         private static IntPtr _hollowBrush;
 
-        private static IntPtr _clsMainPtr, _clsFbPtr;
+        private static IntPtr _clsMainPtr, _clsFbPtr, _clsPanelPtr;
 
         // 主窗
         private static IntPtr _main, _top, _bottom, _toc, _split, _body;
@@ -391,6 +450,10 @@ namespace WardenHelp
             var wcFb = MakeClass(_clsFbPtr);
             ushort a2 = RegisterClassExW(ref wcFb);
             L("RegisterClassExW(feedback) atom=" + a2 + " err=" + Marshal.GetLastWin32Error());
+            _clsPanelPtr = Marshal.StringToHGlobalUni(ClsPanel);
+            var wcPanel = MakePanelClass(_clsPanelPtr);
+            ushort a3 = RegisterClassExW(ref wcPanel);
+            L("RegisterClassExW(panel) atom=" + a3 + " err=" + Marshal.GetLastWin32Error());
 
             if (!ShowMain(inst))
             {
@@ -437,8 +500,19 @@ namespace WardenHelp
             _fonts.Clear();
             if (_clsMainPtr != IntPtr.Zero) { Marshal.FreeHGlobal(_clsMainPtr); _clsMainPtr = IntPtr.Zero; }
             if (_clsFbPtr != IntPtr.Zero) { Marshal.FreeHGlobal(_clsFbPtr); _clsFbPtr = IntPtr.Zero; }
+            if (_clsPanelPtr != IntPtr.Zero) { Marshal.FreeHGlobal(_clsPanelPtr); _clsPanelPtr = IntPtr.Zero; }
         }
 
+        /// <summary>★ 面板类：底色由 PanelWndProc 自己画（不依赖内核 STATIC 类的行为 ✓）</summary>
+        private static WNDCLASSEXW MakePanelClass(IntPtr name) => new WNDCLASSEXW
+        {
+            cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
+            style = CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, IntPtr, IntPtr>)&PanelWndProc,
+            hInstance = GetModuleHandleW(null),
+            hbrBackground = IntPtr.Zero,          // ★ 底色不靠类刷子，靠 PanelWndProc 自己填 ✓
+            lpszClassName = name,
+        };
         /// <summary>★ 两个窗口共用同一个类结构，回调不同（AOT 官方方式 ✓）</summary>
         private static WNDCLASSEXW MakeClass(IntPtr name)
         {
@@ -502,13 +576,13 @@ namespace WardenHelp
             //    实测坑②：后建的 STATIC 在 z 序上【盖住】先建的 ✗ 顶栏蓝底会被底栏灰底压掉 ✓
             //      → 所以建完最后用 SetWindowPos 把顶栏提到最前 ✓（WinForms 的 Dock 顺序也是这个道理 ✓）
 
-            _top = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _top = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 0, 0, S(820), S(60), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             Lab(_top, WardenLang.Lang.T("help.heading"), 18, 8, 600, 26, _fontHeading);
             Lab(_top, WardenLang.Lang.T("help.subheading"), 20, 34, 700, 20, _fontBase);
             PaintPanel(_top, CLR_BLUE);
 
-            _bottom = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _bottom = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 0, 0, S(820), S(58), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             PaintPanel(_bottom, CLR_BOTTOM);
 
@@ -524,7 +598,7 @@ namespace WardenHelp
                 S(0), S(60), S(220), S(482), h, (IntPtr)ID_TOC, IntPtr.Zero, IntPtr.Zero);
             SendMessageW(_toc, LB_SETITEMHEIGHT, IntPtr.Zero, (IntPtr)S(30));
 
-            _split = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _split = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 S(220), S(60), S(1), S(482), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             PaintPanel(_split, CLR_SPLIT);
 
@@ -668,13 +742,13 @@ namespace WardenHelp
             L("WM_CREATE(反馈窗) hwnd=" + h);
             _fontPreview = NewFont(9f, 400, "Consolas");   // 预览用等宽字体 ✓
 
-            _fbTop = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _fbTop = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 0, 0, S(760), S(52), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             Lab(_fbTop, WardenLang.Lang.T("fb.heading"), 18, 12, 700, 28, _fontHeading);
             PaintPanel(_fbTop, CLR_BLUE);
 
             // 中间承载区（旧版是 AutoScroll 的 host 面板 ✓ 坐标相对它算 ✓）
-            _fbHost = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _fbHost = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 0, 0, S(760), S(500), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             PaintPanel(_fbHost, CLR_WHITE);
 
@@ -733,7 +807,7 @@ namespace WardenHelp
                 S(16), S(y), S(706), S(130), _fbHost, (IntPtr)ID_FB_PREVIEW, IntPtr.Zero, IntPtr.Zero);
 
             // ---- 底部按钮 ----
-            _fbBottom = CreateWindowExW(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            _fbBottom = CreateWindowExW(0, ClsPanel, "", WS_CHILD | WS_VISIBLE | SS_LEFT,
                 0, 0, S(760), S(88), h, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             PaintPanel(_fbBottom, CLR_BOTTOM);
 
@@ -791,13 +865,13 @@ namespace WardenHelp
         }
 
         /// <summary>
-        /// 面板底色登记。
-        /// ★ 面板自己负责画底色（WM_PAINT ✓）——因为 WinForms 的 Panel 本来就是自己画的 ✓
-        ///   （原来的写法以为子控件会自动继承底色 ✗ 实测顶栏蓝底压根没出现 ✓）
+        /// <summary>
+        /// 面板底色登记（★ 不登记到 _labelBg：面板的底色由 WM_ERASEBKGND 自己填 ✓）
+        /// 【为什么不用 WM_PAINT】实测：STATIC 类面板收不到自己的 WM_PAINT ✗
+        ///   而 WM_ERASEBKGND 是父窗在绘制时发过来的，稳定到达 ✓
         /// </summary>
         private static void PaintPanel(IntPtr panel, int color)
         {
-            _labelBg[panel] = Bg(color);
             if (panel == _top) { _topColor = color; }
             else if (panel == _bottom) { _bottomColor = color; }
             else if (panel == _split) { _splitColor = color; }
@@ -806,129 +880,55 @@ namespace WardenHelp
             else if (panel == _fbBottom) { _fbBottomColor = color; }
         }
 
+        /// <summary>这个句柄是不是面板？是就返回它的底色（不是返回 -1 ✓）</summary>
+        private static int PanelColor(IntPtr h)
+        {
+            if (h == _top) { return _topColor; }
+            if (h == _bottom) { return _bottomColor; }
+            if (h == _split) { return _splitColor; }
+            if (h == _fbTop) { return _fbTopColor; }
+            if (h == _fbHost) { return _fbHostColor; }
+            if (h == _fbBottom) { return _fbBottomColor; }
+            return -1;
+        }
+
         private static int _topColor = -1, _bottomColor = -1, _splitColor = -1,
                            _fbTopColor = -1, _fbHostColor = -1, _fbBottomColor = -1;
         private static bool _paintedLogged;
+        private static int _panelMsgProbe;
         private static int _paintProbe;
 
-        /// <summary>
-        /// 主窗 / 反馈窗的 WM_PAINT：把顶栏、底栏、分隔线的底色与顶栏文字画出来。
-        /// ★ 为什么由父窗画：实测子面板收不到自己的 WM_PAINT（三种踢法都试过 ✗）
-        ///   父窗 WM_PAINT 每次都稳定到达 ✓ 所以底色统一在这里画 ✓
-        ///   子控件坐标用的还是各自面板的坐标系，位置一字未改 ✓
-        /// </summary>
-        private static void PaintChrome(IntPtr h)
+        /// <summary>顶栏两行白字（旧版是 top 面板里的两个 SS_LEFT 标签 ✓ 位置/字号/颜色一字不差 ✓）</summary>
+        private static void DrawTopBarText(IntPtr dc)
         {
-            PAINTSTRUCT ps;
-            IntPtr dc = BeginPaint(h, out ps);
-            if (dc == IntPtr.Zero) { return; }
+            int oldBk = SetBkMode(dc, TRANSPARENT);
+            IntPtr oldF = SelectObject(dc, _fontHeading);
+            SetTextColor(dc, CLR_WHITE);
+            RECT r1 = new() { L = S(18), T = S(8), R = S(618), B = S(34) };
+            DrawTextW(dc, WardenLang.Lang.T("help.heading"), -1, ref r1,
+                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+            SelectObject(dc, oldF);
 
-            if (h == _main)
-            {
-                RECT rTop = new() { L = 0, T = 0, R = S(820), B = S(60) };
-                FillRect(dc, ref rTop, Bg(CLR_BLUE));
-                RECT rBot = new() { L = 0, T = S(542), R = S(820), B = S(600) };
-                FillRect(dc, ref rBot, Bg(CLR_BOTTOM));
-                RECT rSplit = new() { L = S(220), T = S(60), R = S(221), B = S(542) };
-                FillRect(dc, ref rSplit, Bg(CLR_SPLIT));
-
-                int oldBk = SetBkMode(dc, TRANSPARENT);
-                IntPtr oldF = SelectObject(dc, _fontHeading);
-                SetTextColor(dc, CLR_WHITE);
-                RECT r1 = new() { L = S(18), T = S(8), R = S(618), B = S(34) };
-                DrawTextW(dc, WardenLang.Lang.T("help.heading"), -1, ref r1,
-                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                SelectObject(dc, oldF);
-
-                oldF = SelectObject(dc, _fontBase);
-                SetTextColor(dc, CLR_SUBHEAD);
-                RECT r2 = new() { L = S(20), T = S(34), R = S(720), B = S(54) };
-                DrawTextW(dc, WardenLang.Lang.T("help.subheading"), -1, ref r2,
-                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                SelectObject(dc, oldF);
-                SetBkMode(dc, oldBk);
-                if (!_paintedLogged)
-                {
-                    L("PaintChrome(主窗) 完成：顶栏蓝(" + S(820) + "x" + S(60) + ") 底栏 白字已画 ✓");
-                    _paintedLogged = true;
-                }
-            }
-            else if (h == _fb)
-            {
-                RECT rTop = new() { L = 0, T = 0, R = S(760), B = S(52) };
-                FillRect(dc, ref rTop, Bg(CLR_BLUE));
-                RECT rBot = new() { L = 0, T = S(552), R = S(760), B = S(640) };
-                FillRect(dc, ref rBot, Bg(CLR_BOTTOM));
-
-                int oldBk = SetBkMode(dc, TRANSPARENT);
-                IntPtr oldF = SelectObject(dc, _fontHeading);
-                SetTextColor(dc, CLR_WHITE);
-                RECT r1 = new() { L = S(18), T = S(12), R = S(718), B = S(40) };
-                DrawTextW(dc, WardenLang.Lang.T("fb.heading"), -1, ref r1,
-                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                SelectObject(dc, oldF);
-                SetBkMode(dc, oldBk);
-            }
-            EndPaint(h, ref ps);
+            oldF = SelectObject(dc, _fontBase);
+            SetTextColor(dc, CLR_SUBHEAD);
+            RECT r2 = new() { L = S(20), T = S(34), R = S(720), B = S(54) };
+            DrawTextW(dc, WardenLang.Lang.T("help.subheading"), -1, ref r2,
+                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+            SelectObject(dc, oldF);
+            SetBkMode(dc, oldBk);
         }
 
-        /// <summary>面板的 WM_PAINT：自己画底色（顶栏还要画粗体大标题 ✓）</summary>
-        private static void PaintPanel(IntPtr h)
+        /// <summary>反馈窗顶栏一行白字（对应 fb.heading 标签 ✓）</summary>
+        private static void DrawFeedbackTopText(IntPtr dc)
         {
-            L("PaintPanel 进入 hwnd=" + h);
-            PAINTSTRUCT ps;
-            IntPtr dc = BeginPaint(h, out ps);
-            L("  BeginPaint dc=" + dc + " rcPaint=(" + ps.rcPaint.L + "," + ps.rcPaint.T + "," + ps.rcPaint.R + "," + ps.rcPaint.B + ")");
-            if (dc == IntPtr.Zero) { return; }
-
-            int color = -1;
-            if (h == _top) { color = _topColor; }
-            else if (h == _bottom) { color = _bottomColor; }
-            else if (h == _split) { color = _splitColor; }
-            else if (h == _fbTop) { color = _fbTopColor; }
-            else if (h == _fbHost) { color = _fbHostColor; }
-            else if (h == _fbBottom) { color = _fbBottomColor; }
-
-            if (color >= 0)
-            {
-                RECT rc = ps.rcPaint;
-                IntPtr br = Bg(color);
-                int ok = FillRect(dc, ref rc, br);
-                if (!_paintedLogged) { L("PaintPanel 首次：hwnd=" + h + " 颜色=#" + color.ToString("X6") + " 刷子=" + br + " FillRect=" + ok + " rcPaint=(" + rc.L + "," + rc.T + "," + rc.R + "," + rc.B + ")"); _paintedLogged = true; }
-            }
-
-            // 顶栏的两行白字由这里画（原本是 SS_LEFT 的 STATIC 标签 ✓ 位置/字号/颜色一字不差 ✓）
-            if (h == _top || h == _fbTop)
-            {
-                int oldBk = SetBkMode(dc, TRANSPARENT);
-                if (h == _top)
-                {
-                    IntPtr oldF = SelectObject(dc, _fontHeading);
-                    SetTextColor(dc, CLR_WHITE);
-                    RECT r1 = new() { L = S(18), T = S(8), R = S(618), B = S(34) };
-                    DrawTextW(dc, WardenLang.Lang.T("help.heading"), -1, ref r1,
-                        DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                    SelectObject(dc, oldF);
-
-                    oldF = SelectObject(dc, _fontBase);
-                    SetTextColor(dc, CLR_SUBHEAD);
-                    RECT r2 = new() { L = S(20), T = S(34), R = S(720), B = S(54) };
-                    DrawTextW(dc, WardenLang.Lang.T("help.subheading"), -1, ref r2,
-                        DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                    SelectObject(dc, oldF);
-                }
-                else
-                {
-                    IntPtr oldF = SelectObject(dc, _fontHeading);
-                    SetTextColor(dc, CLR_WHITE);
-                    RECT r1 = new() { L = S(18), T = S(12), R = S(718), B = S(40) };
-                    DrawTextW(dc, WardenLang.Lang.T("fb.heading"), -1, ref r1,
-                        DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-                    SelectObject(dc, oldF);
-                }
-                SetBkMode(dc, oldBk);
-            }
-            EndPaint(h, ref ps);
+            int oldBk = SetBkMode(dc, TRANSPARENT);
+            IntPtr oldF = SelectObject(dc, _fontHeading);
+            SetTextColor(dc, CLR_WHITE);
+            RECT r1 = new() { L = S(18), T = S(12), R = S(718), B = S(40) };
+            DrawTextW(dc, WardenLang.Lang.T("fb.heading"), -1, ref r1,
+                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+            SelectObject(dc, oldF);
+            SetBkMode(dc, oldBk);
         }
 
         private static readonly Dictionary<int, IntPtr> _brushes = new();
@@ -1257,18 +1257,14 @@ namespace WardenHelp
                     //   子面板（STATIC 类）【收不到自己的 WM_PAINT】✗
                     //   实测证据：InvalidateRect + PostMessage(WM_PAINT) + SendMessageW(WM_PAINT)
                     //             三种都试过，日志里面板一条 WM_PAINT 都没到 ✗
-                    //             而主窗的 WM_PAINT 每次都稳定到达 ✓
-                    //   修法：面板控件只当【占位 + 让子控件挂靠】，底色统一由主窗 WM_PAINT 画 ✓
-                    //         （与 WinForms 的 Panel 观感一致；控件坐标全都在面板坐标系里，不受影响 ✓）
-                    if (h == _main || h == _fb)
-                    {
-                        PaintChrome(h);
-                    }
-                    break;   // 交给 DefWindowProc（它会 BeginPaint/EndPaint 清背景 ✓）
+                    //   修法：面板底色改由 WM_ERASEBKGND 填（父窗绘制时发的，稳定到达 ✓ 见下面那条 ✓）
+                    //   主窗自己：DefWindowProc 会 BeginPaint/EndPaint 清背景 ✓ 不需要额外处理 ✓
+                    break;
 
                 case WM_CTLCOLORSTATIC:
                 {
                     // ★ 让每个标签用自己那块面板的底色（顶栏蓝 / 底栏浅灰 / 承载区白 ✓）
+                    //   ★ 面板自己【不登记】（见 PaintPanel：面板走 WM_ERASEBKGND 自己填 ✓）
                     if (_labelBg.TryGetValue(w, out IntPtr br) && br != IntPtr.Zero) { return br; }
                     return DefWindowProcW(h, m, w, l);
                 }

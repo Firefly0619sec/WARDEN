@@ -282,22 +282,28 @@ namespace WardenLogView
 
         /// <summary>原生保存对话框（comdlg32 ✓）；用户取消返回 null ✓</summary>
         internal static string? SaveFile(IntPtr owner, string title, string filter, string defExt, string fileName)
-            => FileDialog(owner, title, filter, defExt, fileName, true);
+            => FileDialog(owner, title, filter, defExt, fileName, true, "");
+
+        /// <summary>原生保存对话框 + 指定初始目录 ✓（导出报告默认落在桌面 ✓）</summary>
+        internal static string? SaveFile(IntPtr owner, string title, string filter, string defExt, string fileName, string initialDir)
+            => FileDialog(owner, title, filter, defExt, fileName, true, initialDir);
 
         /// <summary>原生打开对话框（comdlg32 ✓）；用户取消返回 null ✓</summary>
         internal static string? OpenFile(IntPtr owner, string title, string filter, string defExt)
-            => FileDialog(owner, title, filter, defExt, "", false);
+            => FileDialog(owner, title, filter, defExt, "", false, "");
 
-        private static string? FileDialog(IntPtr owner, string title, string filter, string defExt, string fileName, bool save)
+        private static string? FileDialog(IntPtr owner, string title, string filter, string defExt,
+                                          string fileName, bool save, string initialDir)
         {
             const int OFN_READONLY = 0x00000001, OFN_OVERWRITEPROMPT = 0x00000002, OFN_PATHMUSTEXIST = 0x00000800,
                       OFN_FILEMUSTEXIST = 0x00001000, OFN_NOCHANGEDIR = 0x00000008, OFN_EXPLORER = 0x00080000;
-            IntPtr pFilter = IntPtr.Zero, pTitle = IntPtr.Zero, pDefExt = IntPtr.Zero, pFile = IntPtr.Zero;
+            IntPtr pFilter = IntPtr.Zero, pTitle = IntPtr.Zero, pDefExt = IntPtr.Zero, pFile = IntPtr.Zero, pDir = IntPtr.Zero;
             try
             {
                 pFilter = Marshal.StringToHGlobalUni(filter);   // "描述\0*.md\0" 形式 ✓
                 pTitle = Marshal.StringToHGlobalUni(title);
                 pDefExt = Marshal.StringToHGlobalUni(defExt);
+                if (!string.IsNullOrEmpty(initialDir)) { pDir = Marshal.StringToHGlobalUni(initialDir); }
                 const int maxFile = 4096;
                 pFile = Marshal.AllocHGlobal(maxFile * 2);
                 for (int i = 0; i < maxFile; i++) { Marshal.WriteInt16(pFile, i * 2, 0); }
@@ -316,6 +322,7 @@ namespace WardenLogView
                     nMaxFile = maxFile,
                     lpstrTitle = pTitle,
                     lpstrDefExt = pDefExt,
+                    lpstrInitialDir = pDir,
                     Flags = (uint)(OFN_EXPLORER | OFN_NOCHANGEDIR |
                             (save ? OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST
                                   : OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_READONLY)),
@@ -337,6 +344,7 @@ namespace WardenLogView
                 if (pTitle != IntPtr.Zero) { Marshal.FreeHGlobal(pTitle); }
                 if (pDefExt != IntPtr.Zero) { Marshal.FreeHGlobal(pDefExt); }
                 if (pFile != IntPtr.Zero) { Marshal.FreeHGlobal(pFile); }
+                if (pDir != IntPtr.Zero) { Marshal.FreeHGlobal(pDir); }
             }
         }
 
