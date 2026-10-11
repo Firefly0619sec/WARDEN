@@ -23,7 +23,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Windows.Forms;
+// 0.3.0：走原生 Win32 实现（Win32Ui.cs）✗ 不再依赖 WinForms ✓ 以便 Native AOT ✓
 using Microsoft.Win32;
 
 using WardenSetup;   // ★ 复用安装器里的停止令牌实现 ✓
@@ -67,8 +67,6 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
                 // 0.2.6 修（实测出来的真 bug，0.2.5 存在）：
                 //   Ask 的返回值是「用户是否确认卸载」，不是「是否删除数据」
                 //   原来直接赋给 purge，导致不勾选复选框也会删除配置与日志
@@ -87,13 +85,13 @@ namespace WardenUninstall
 
             if (!silent)
             {
-                MessageBox.Show(ok
+                // 0.3.0：改用原生消息框（Win32Ui.Msg ✓ AOT 安全 ✓）
+                Win32Ui.Msg(ok
                         ? "WARDEN 已卸载。\n\n" + (purge
                             ? "配置与日志也已删除。"
                             : "你的配置与日志【保留】在：\n" + DataDir + "\n（要一起删就再运行一次并勾选删除）")
                         : "卸载完成，但有部分文件没删掉（可能还在运行）。\n详情见：\n" + LogPath,
-                    "WARDEN 卸载", MessageBoxButtons.OK,
-                    ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    "WARDEN 卸载", ok);
             }
             Environment.Exit(ok ? 0 : 4);
         }
