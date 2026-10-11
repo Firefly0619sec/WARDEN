@@ -224,6 +224,9 @@ namespace WardenHelp
             public IntPtr lpstrDefExt, lCustData, lpfnHook, lpTemplateName, pvReserved;
             public uint dwReserved, FlagsEx;
         }
+        // ★ 2026-10-11 补：子代理交付物缺少这个 P/Invoke 声明（干净编译才现形）
+        [DllImport("user32.dll")] private static extern bool PostMessageW(IntPtr h, uint m, IntPtr w, IntPtr l);
+
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern ushort RegisterClassExW(ref WNDCLASSEXW c);
@@ -510,10 +513,10 @@ namespace WardenHelp
             PaintPanel(_bottom, CLR_BOTTOM);
 
             // ★ 按钮 ID 全部放进 hMenu ✓
-            Btn(_bottom, WardenLang.Lang.T("help.btn.feedback"), 16, 14, 120, 32, ID_BTN_FEEDBACK, false);
-            Btn(_bottom, WardenLang.Lang.T("help.btn.openPage"), 144, 14, 130, 32, ID_BTN_OPENPAGE, false);
-            Btn(_bottom, WardenLang.Lang.T("help.btn.settings"), 282, 14, 130, 32, ID_BTN_SETTINGS, false);
-            Btn(_bottom, WardenLang.Lang.T("common.close"), 686, 14, 118, 32, ID_BTN_CLOSE, true);
+            Btn(h, WardenLang.Lang.T("help.btn.feedback"), 16, 542 + 14, 120, 32, ID_BTN_FEEDBACK, false);   // ★ 父窗口改主窗 ✓ 否则 WM_COMMAND 被 STATIC 吞掉 ✗
+            Btn(h, WardenLang.Lang.T("help.btn.openPage"), 144, 542 + 14, 130, 32, ID_BTN_OPENPAGE, false);
+            Btn(h, WardenLang.Lang.T("help.btn.settings"), 282, 542 + 14, 130, 32, ID_BTN_SETTINGS, false);
+            Btn(h, WardenLang.Lang.T("common.close"), 686, 542 + 14, 118, 32, ID_BTN_CLOSE, true);
 
             // 左侧目录：自绘（行高 30 ✓ 无边框 ✓）
             _toc = CreateWindowExW(0, "LISTBOX", "",
@@ -580,6 +583,16 @@ namespace WardenHelp
             {
                 SetWindowPos(_bottom, _top, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }
+            // ★★ 实测坑（最费时间的一个）：STATIC 类面板收不到 WM_PAINT ✗
+            //    实测证据：InvalidateRect + PostMessage(WM_PAINT) 之后，
+            //              日志里 WM_PAINT 仍然只到达主窗，面板一个都没到 ✗
+            //    修法：用 SendMessageW 同步送 WM_PAINT（不走消息队列 ✓ 一定能到 ✓）
+            foreach (IntPtr p in new[] { _top, _bottom, _split })
+            {
+                if (p == IntPtr.Zero) { continue; }
+                InvalidateRect(p, IntPtr.Zero, true);
+                SendMessageW(p, WM_PAINT, IntPtr.Zero, IntPtr.Zero);
+            }
         }
 
         /// <summary>★ 反馈窗布局：顶栏 52 / 承载区 500 / 底栏 88（客户区 760x640 ✓）</summary>
@@ -595,6 +608,12 @@ namespace WardenHelp
             if (_fbBottom != IntPtr.Zero)
             {
                 SetWindowPos(_fbBottom, _fbTop, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+            foreach (IntPtr p in new[] { _fbTop, _fbHost, _fbBottom })
+            {
+                if (p == IntPtr.Zero) { continue; }
+                InvalidateRect(p, IntPtr.Zero, true);
+                SendMessageW(p, WM_PAINT, IntPtr.Zero, IntPtr.Zero);
             }
         }
 
@@ -740,6 +759,8 @@ namespace WardenHelp
             if (_preview != IntPtr.Zero) { SendMessageW(_preview, WM_SETFONT, _fontPreview, (IntPtr)1); }
 
             RefreshPreview();
+            LayoutFeedback();
+            L("反馈窗布局完成：顶栏(0,0,760,52) 承载区(0,52,760,500) 底栏(0,552,760,88)");
             InvalidateRect(h, IntPtr.Zero, true);
         }
 
@@ -787,12 +808,77 @@ namespace WardenHelp
 
         private static int _topColor = -1, _bottomColor = -1, _splitColor = -1,
                            _fbTopColor = -1, _fbHostColor = -1, _fbBottomColor = -1;
+        private static bool _paintedLogged;
+        private static int _paintProbe;
+
+        /// <summary>
+        /// 主窗 / 反馈窗的 WM_PAINT：把顶栏、底栏、分隔线的底色与顶栏文字画出来。
+        /// ★ 为什么由父窗画：实测子面板收不到自己的 WM_PAINT（三种踢法都试过 ✗）
+        ///   父窗 WM_PAINT 每次都稳定到达 ✓ 所以底色统一在这里画 ✓
+        ///   子控件坐标用的还是各自面板的坐标系，位置一字未改 ✓
+        /// </summary>
+        private static void PaintChrome(IntPtr h)
+        {
+            PAINTSTRUCT ps;
+            IntPtr dc = BeginPaint(h, out ps);
+            if (dc == IntPtr.Zero) { return; }
+
+            if (h == _main)
+            {
+                RECT rTop = new() { L = 0, T = 0, R = S(820), B = S(60) };
+                FillRect(dc, ref rTop, Bg(CLR_BLUE));
+                RECT rBot = new() { L = 0, T = S(542), R = S(820), B = S(600) };
+                FillRect(dc, ref rBot, Bg(CLR_BOTTOM));
+                RECT rSplit = new() { L = S(220), T = S(60), R = S(221), B = S(542) };
+                FillRect(dc, ref rSplit, Bg(CLR_SPLIT));
+
+                int oldBk = SetBkMode(dc, TRANSPARENT);
+                IntPtr oldF = SelectObject(dc, _fontHeading);
+                SetTextColor(dc, CLR_WHITE);
+                RECT r1 = new() { L = S(18), T = S(8), R = S(618), B = S(34) };
+                DrawTextW(dc, WardenLang.Lang.T("help.heading"), -1, ref r1,
+                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+                SelectObject(dc, oldF);
+
+                oldF = SelectObject(dc, _fontBase);
+                SetTextColor(dc, CLR_SUBHEAD);
+                RECT r2 = new() { L = S(20), T = S(34), R = S(720), B = S(54) };
+                DrawTextW(dc, WardenLang.Lang.T("help.subheading"), -1, ref r2,
+                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+                SelectObject(dc, oldF);
+                SetBkMode(dc, oldBk);
+                if (!_paintedLogged)
+                {
+                    L("PaintChrome(主窗) 完成：顶栏蓝(" + S(820) + "x" + S(60) + ") 底栏 白字已画 ✓");
+                    _paintedLogged = true;
+                }
+            }
+            else if (h == _fb)
+            {
+                RECT rTop = new() { L = 0, T = 0, R = S(760), B = S(52) };
+                FillRect(dc, ref rTop, Bg(CLR_BLUE));
+                RECT rBot = new() { L = 0, T = S(552), R = S(760), B = S(640) };
+                FillRect(dc, ref rBot, Bg(CLR_BOTTOM));
+
+                int oldBk = SetBkMode(dc, TRANSPARENT);
+                IntPtr oldF = SelectObject(dc, _fontHeading);
+                SetTextColor(dc, CLR_WHITE);
+                RECT r1 = new() { L = S(18), T = S(12), R = S(718), B = S(40) };
+                DrawTextW(dc, WardenLang.Lang.T("fb.heading"), -1, ref r1,
+                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+                SelectObject(dc, oldF);
+                SetBkMode(dc, oldBk);
+            }
+            EndPaint(h, ref ps);
+        }
 
         /// <summary>面板的 WM_PAINT：自己画底色（顶栏还要画粗体大标题 ✓）</summary>
         private static void PaintPanel(IntPtr h)
         {
+            L("PaintPanel 进入 hwnd=" + h);
             PAINTSTRUCT ps;
             IntPtr dc = BeginPaint(h, out ps);
+            L("  BeginPaint dc=" + dc + " rcPaint=(" + ps.rcPaint.L + "," + ps.rcPaint.T + "," + ps.rcPaint.R + "," + ps.rcPaint.B + ")");
             if (dc == IntPtr.Zero) { return; }
 
             int color = -1;
@@ -806,7 +892,9 @@ namespace WardenHelp
             if (color >= 0)
             {
                 RECT rc = ps.rcPaint;
-                FillRect(dc, ref rc, Bg(color));
+                IntPtr br = Bg(color);
+                int ok = FillRect(dc, ref rc, br);
+                if (!_paintedLogged) { L("PaintPanel 首次：hwnd=" + h + " 颜色=#" + color.ToString("X6") + " 刷子=" + br + " FillRect=" + ok + " rcPaint=(" + rc.L + "," + rc.T + "," + rc.R + "," + rc.B + ")"); _paintedLogged = true; }
             }
 
             // 顶栏的两行白字由这里画（原本是 SS_LEFT 的 STATIC 标签 ✓ 位置/字号/颜色一字不差 ✓）
@@ -1132,6 +1220,9 @@ namespace WardenHelp
         // ====================================================================
         private static IntPtr WndProc(IntPtr h, uint m, IntPtr w, IntPtr l, bool isFb)
         {
+            // ★ 诊断（2026-10-11）：无条件记录每条消息 —— 用来判定 WM_COMMAND 到底有没有到主窗
+            //   （Help 四个按钮全无反应，日志里连一条点击记录都没有 ✓ 必须看到 0x111 才能往下查）
+            try { if (m == 0x0111 || m == 0x0100 || m == 0x0201) { L("WndProc msg=0x" + m.ToString("X") + " hwnd=" + h + " w=" + w.ToInt64() + " isFb=" + isFb); } } catch { }
             switch (m)
             {
                 case WM_CREATE:
@@ -1162,15 +1253,18 @@ namespace WardenHelp
                     return (IntPtr)1;
 
                 case WM_PAINT:
-                    // ★ 面板自己画底色（顶栏蓝底 + 两行白字 ✓）
-                    //   漏掉这一条实测后果：顶栏压根不蓝，就是一片 #F0F0F0 ✗
-                    if (h == _top || h == _bottom || h == _split
-                        || h == _fbTop || h == _fbHost || h == _fbBottom)
+                    // ★★ 2026-10-11 实测结论（这一版是被实测逼出来的 ✓）：
+                    //   子面板（STATIC 类）【收不到自己的 WM_PAINT】✗
+                    //   实测证据：InvalidateRect + PostMessage(WM_PAINT) + SendMessageW(WM_PAINT)
+                    //             三种都试过，日志里面板一条 WM_PAINT 都没到 ✗
+                    //             而主窗的 WM_PAINT 每次都稳定到达 ✓
+                    //   修法：面板控件只当【占位 + 让子控件挂靠】，底色统一由主窗 WM_PAINT 画 ✓
+                    //         （与 WinForms 的 Panel 观感一致；控件坐标全都在面板坐标系里，不受影响 ✓）
+                    if (h == _main || h == _fb)
                     {
-                        PaintPanel(h);
-                        return IntPtr.Zero;
+                        PaintChrome(h);
                     }
-                    break;   // 不是面板 → 交给 DefWindowProc（它会 BeginPaint/EndPaint 清背景 ✓）
+                    break;   // 交给 DefWindowProc（它会 BeginPaint/EndPaint 清背景 ✓）
 
                 case WM_CTLCOLORSTATIC:
                 {
@@ -1238,12 +1332,17 @@ namespace WardenHelp
                         return IntPtr.Zero;
                     case ID_BTN_CLOSE:
                         L("点击：关闭");
-                        DestroyWindow(h);
+                        // ★ 2026-10-11 修（真缺陷）：按钮的父窗口是底栏 _bottom ✗
+                        //   → WM_COMMAND 是发给底栏的 ✓ 所以这里的 h 是底栏而不是主窗 ✗
+                        //   → 原来 DestroyWindow(h) 只销毁了底栏 ✓ 主窗当然还在 ✓
+                        //   必须销毁主窗句柄 _main ✓
+                        DestroyWindow(_main);
                         return IntPtr.Zero;
                 }
             }
             // ★ IsDialogMessageW 会把 Esc 翻成 WM_COMMAND(IDCANCEL=2) ✓ 要能关窗 ✓
-            if (id == 2 && (code == 0 || code == 1)) { L("Esc → 关闭主窗"); DestroyWindow(h); return IntPtr.Zero; }
+            // ★ 同上：Esc 也要销毁主窗（h 可能是底栏 ✗）
+            if (id == 2 && (code == 0 || code == 1)) { L("Esc → 关闭主窗"); DestroyWindow(_main); return IntPtr.Zero; }
             return IntPtr.Zero;
         }
 
@@ -1288,4 +1387,18 @@ namespace WardenHelp
             string text = idx >= 0 && idx < secs.Length ? "  " + secs[idx].Title : "";
 
             bool sel = (dis.itemState & ODS_SELECTED) != 0;
-        
+            RECT rc = dis.rcItem;
+            FillRect(dis.hDC, ref rc, Bg(sel ? CLR_SEL_BG : CLR_TOC_BG));
+
+            int oldBk = SetBkMode(dis.hDC, TRANSPARENT);
+            int oldFg = SetTextColor(dis.hDC, sel ? CLR_WHITE : CLR_TITLE);
+            IntPtr oldFont = SelectObject(dis.hDC, _fontToc);
+            RECT tx = dis.rcItem;
+            tx.R -= S(6);
+            DrawTextW(dis.hDC, text, -1, ref tx, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+            SelectObject(dis.hDC, oldFont);
+            SetTextColor(dis.hDC, oldFg);
+            SetBkMode(dis.hDC, oldBk);
+        }
+    }
+}
