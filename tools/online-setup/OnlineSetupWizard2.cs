@@ -28,6 +28,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Threading;
 
 namespace WardenOnlineSetup
@@ -180,7 +181,32 @@ namespace WardenOnlineSetup
                         return 0;
                 }
             }
-            if (envOnly || check)
+            if (check)
+            {
+                // ★ --check：只问 GitHub"最新版是什么、会下哪个文件、多大"✗ 不下载 ✓
+                //   （以前这里跟 --env 混在一起 ✗ 结果 --check 跑的是环境检测 ✓ 欠了很久的账 ✓）
+                try
+                {
+                    var (tagC, nameC, assetsC, fromC) = Resolve();
+                    Console.WriteLine("仓库: " + Owner + "/" + Repo + (_includePre ? "  (含预发布)" : ""));
+                    Console.WriteLine("来源: " + fromC);
+                    Console.WriteLine("版本: " + tagC + "   " + nameC);
+                    if (assetsC.Count == 0) { Console.WriteLine("★ 这个版本没有可下载的文件 ✗"); return 3; }
+                    var pk = Pick(assetsC);
+                    foreach (var a in assetsC)
+                    {
+                        Console.WriteLine((a.n == pk.n ? "  ★ 会下: " : "         ")
+                                          + a.n.PadRight(30) + (a.sz / 1048576.0).ToString("0.0") + " MB");
+                    }
+                    return pk.n == null ? 3 : 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("★ 查询失败: " + ex.Message);
+                    return 2;
+                }
+            }
+            if (envOnly)
             {
                 _env = EnvCheckLite.Run(_proxy);
                 EnvCheckLite.Print(_env);
@@ -563,39 +589,61 @@ namespace WardenOnlineSetup
         private static bool _includePre;             // --prerelease：连预发布一起看 ✓
 
         /// <summary>★ 问 GitHub 要最新版（不写死版本号 ✓）返回 tag/name/资产表/来源说明 ✓</summary>
+        /// <summary>★ 问 GitHub 要最新版（不写死版本号 ✓）
+        ///   解析用 System.Text.Json ✓（原来是正则手撕 ✗ 为它翻过好几次车 ✓）
+        ///   JsonDocument 是 DOM 方式 ✓ AOT 不需要反射 ✓ 所以能用在原生 AOT 里 ✓</summary>
         private static (string tag, string name, List<(string n, string u, long sz)> assets, string from) Resolve()
         {
             string json = _includePre ? "" : Curl(ApiLatest);
             string from = _includePre ? "releases 列表（含预发布）" : "latest（正式版）";
-            if (!json.Contains("tag_name"))
+            bool asList = false;
+
+            if (!json.Contains("tag_name", StringComparison.Ordinal))
             {
-                string listing = Curl(ApiList);
-                int first = listing.IndexOf("\"tag_name\"");
-                int second = first >= 0 ? listing.IndexOf("\"tag_name\"", first + 10) : -1;
-                if (first < 0) { throw new Exception(T("查不到发布信息（没联网 / 需要代理 / 仓库里还没有发布 ✓）",
-                                                      "Could not read release info (offline / proxy / nothing released)")); }
-                json = second > first ? listing.Substring(first - 20, second - first + 20) : listing.Substring(first - 20);
+                json = Curl(ApiList);
+                asList = true;
                 from = "releases 列表（没有正式版 → 回退到最新的 ✓）";
             }
-            var mt = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
-            var mn = Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
-            string tag = mt.Success ? mt.Groups[1].Value : "?";
-            string name = mn.Success ? mn.Groups[1].Value : tag;
-            var found = new List<(string n, string u, long sz)>();
-            foreach (Match mm in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
+            if (string.IsNullOrWhiteSpace(json) || !json.Contains("tag_name", StringComparison.Ordinal))
             {
-                int at = mm.Index;
-                    // ★ 按资产分段取（上一段 URL 之后 → 本段之前 ✓）
-                    //   原来"往前 900 字符"✗ 会被 uploader 嵌套对象顶出去 → 解析到 0 个 ✗
-                    int prevUrl = json.LastIndexOf("\"browser_download_url\"", at - 1);
-                    int segFrom = prevUrl < 0 ? 0 : prevUrl;
-                    string head = json.Substring(segFrom, at - segFrom);
-                Match n2 = Regex.Match(head, "\"name\"\\s*:\\s*\"([^\"]+)\"(?!.*\"name\")", RegexOptions.Singleline);
-                Match s2 = Regex.Match(head, "\"size\"\\s*:\\s*(\\d+)(?!.*\"size\")", RegexOptions.Singleline);
-                if (!n2.Success) { continue; }
-                found.Add((n2.Groups[1].Value, mm.Groups[1].Value, s2.Success ? long.Parse(s2.Groups[1].Value) : 0));
+                throw new Exception(T("查不到发布信息（没联网 / 需要代理 / 仓库里还没有发布 ✓）",
+                                      "Could not read release info (offline / proxy / nothing released)"));
             }
-            return (tag, name, found, from);
+
+            using var doc = JsonDocument.Parse(json);
+            JsonElement rel = doc.RootElement;
+            if (rel.ValueKind == JsonValueKind.Array)
+            {
+                // 列表是按时间倒序 ✓ 取第一个 = 最新的那一条 ✓
+                if (rel.GetArrayLength() == 0)
+                {
+                    throw new Exception(T("仓库里还没有任何发布 ✓", "This repository has no releases yet"));
+                }
+                rel = rel[0];
+                asList = true;
+            }
+
+            string tag = rel.TryGetProperty("tag_name", out var tEl) ? (tEl.GetString() ?? "?") : "?";
+            string name = rel.TryGetProperty("name", out var nEl) ? (nEl.GetString() ?? tag) : tag;
+            if (string.IsNullOrWhiteSpace(name)) { name = tag; }
+
+            var list = new List<(string n, string u, long sz)>();
+            if (rel.TryGetProperty("assets", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var a in arr.EnumerateArray())
+                {
+                    string an = a.TryGetProperty("name", out var x1) ? (x1.GetString() ?? "") : "";
+                    string au = a.TryGetProperty("browser_download_url", out var x2) ? (x2.GetString() ?? "") : "";
+                    long asz = 0;
+                    if (a.TryGetProperty("size", out var x3) && x3.ValueKind == JsonValueKind.Number)
+                    {
+                        try { asz = x3.GetInt64(); } catch { asz = 0; }
+                    }
+                    if (an.Length > 0 && au.Length > 0) { list.Add((an, au, asz)); }
+                }
+            }
+            if (asList) { /* 只是来源说明用 ✓ */ }
+            return (tag, name, list, from);
         }
 
         /// <summary>★ 挑哪个文件：--asset 优先 ✓ 否则挑安装包 ✓ 再否则第一个 exe ✓（不写死 ✓）</summary>
