@@ -663,7 +663,7 @@ namespace WardenOnlineSetup
             found.RemoveAll(a => a.n.IndexOf("arm64", StringComparison.OrdinalIgnoreCase) >= 0
                                  || a.n.IndexOf("aarch64", StringComparison.OrdinalIgnoreCase) >= 0
                                  || System.Text.RegularExpressions.Regex.IsMatch(a.n, @"(?i)\barm\b"));
-            if (found.Count == 0) { return list.Count > 0 ? list[0] : (null!, null!, 0); }
+            if (found.Count == 0) { return found.Count > 0 ? found[0] : (null!, null!, 0); }
             var setup = found.Find(a => a.n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                                        && a.n.IndexOf("Setup", StringComparison.OrdinalIgnoreCase) >= 0
                                        && a.n.IndexOf("Online", StringComparison.OrdinalIgnoreCase) < 0
