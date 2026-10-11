@@ -34,6 +34,9 @@ namespace WardenSetup
         private volatile bool _installing;
         // ★ 完成页的"立即启动"（用户 2026-10-11 反馈：别用弹窗问 ✗ 直接做进安装器 ✓）
         private CheckBox _ckLaunch = new CheckBox();
+        // ★ 2026-10-11 用户要求：装完之后【先向导 → 再设置】✓
+        //   完成页留一个按钮直达设置界面 ✓ 点它就关掉向导并打开 Settings.exe ✓
+        private Button _btnSettings = new Button();
         private bool _done;
 
         private bool DesktopWanted => _ckDesktop.Checked;
@@ -406,6 +409,47 @@ _next.Text = "启动 WARDEN";
                   }
                   _ckLaunch.Visible = true;
                   _ckLaunch.BringToFront();
+
+            // ★ 2026-10-11 用户要求（装完先向导 → 再设置 ✓ 向导里留一个按钮到设置 ✓）
+            if (_btnSettings.Parent == null)
+            {
+                _btnSettings.Text = "打开设置界面";
+                _btnSettings.AutoSize = true;
+                _btnSettings.Location = new System.Drawing.Point(22, 104);
+                _btnSettings.Click += (s, e) =>
+                {
+                    try
+                    {
+                        string setExe = System.IO.Path.Combine(_dir, "Settings.exe");
+                        if (System.IO.File.Exists(setExe))
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(setExe)
+                            {
+                                WorkingDirectory = _dir,
+                                UseShellExecute = true,
+                            });
+                        }
+                        else
+                        {
+                            // ★ 找不到就明确告知 ✗ 不许静默失败 ✓
+                            MessageBox.Show(this,
+                                "没找到设置程序：" + System.Environment.NewLine + setExe,
+                                "WARDEN 安装向导", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;   // ★ 找不到就别关向导 ✓
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this, "打开设置失败：" + ex.Message,
+                            "WARDEN 安装向导", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    Close();   // ★ 关掉向导 → 下一个出现的界面就是设置 ✓
+                };
+                _body.Controls.Add(_btnSettings);
+                _btnSettings.Visible = true;
+                _btnSettings.BringToFront();
+            }
             }
             else
             {
