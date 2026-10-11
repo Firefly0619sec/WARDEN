@@ -107,9 +107,13 @@ namespace WardenSetup
 
         // ================================================================ 安装
         public static bool Install(string dir, bool desktop, bool autostart,
-                                  bool redTeam, out string error)
+                                  bool redTeam, out string error,
+                                  Action<int, string>? progress = null)
         {
             error = string.Empty;
+            // ★ 进度回调（不传也能用 ✓ 界面那边传进来就显示进度条 ✓）
+            void Rep(int pct, string msg) { try { progress?.Invoke(pct, msg); } catch { } }
+            Rep(1, "正在检查安装位置…");
             try
             {
                 string? problem = Installer.ValidateDir(dir);
@@ -120,10 +124,12 @@ namespace WardenSetup
                 }
 
                 L("安装目录: " + dir);
+                Rep(5, "正在停止正在运行的 WARDEN…");
                 StopRunningWarden();
                 Directory.CreateDirectory(dir);
+                Rep(8, "正在准备安装目录…");
 
-                if (!ExtractPayload(dir, out string exErr))
+                if (!ExtractPayload(dir, out string exErr, Rep))
                 {
                     error = "释放文件失败：" + exErr;
                     return false;
@@ -131,6 +137,7 @@ namespace WardenSetup
 
                 HandleRedTeam(dir, redTeam);
 
+                Rep(82, "正在创建快捷方式…");
                 string exe = Path.Combine(dir, "WARDEN.exe");
                 string sm = Path.Combine(Installer.StartMenuDir, "WARDEN");
                 Installer.MakeLnk(Path.Combine(sm, "WARDEN.lnk"), exe, "",
@@ -156,6 +163,7 @@ namespace WardenSetup
                 }
                 L("快捷方式: 开始菜单 ✓" + (desktop ? "  桌面 ✓" : "  桌面（未选）"));
 
+                Rep(93, "正在写入卸载入口与开机启动…");
                 RegisterUninstall(dir);
                 SetAutostart(autostart, exe);
                 L("注册表: 卸载入口 ✓  开机启动=" + (autostart ? "开" : "关"));
@@ -165,6 +173,7 @@ namespace WardenSetup
                 try { if (File.Exists(stop)) { File.Delete(stop); L("已清掉 .stop ✓"); } }
                 catch { }
 
+                Rep(100, "安装完成 ✓");
                 L("安装完成 ✓");
                 return true;
             }
@@ -176,7 +185,8 @@ namespace WardenSetup
         }
 
         /// <summary>★ 释放内嵌载荷（zip 里的相对路径直接铺到安装目录）✓</summary>
-        private static bool ExtractPayload(string dir, out string error)
+        private static bool ExtractPayload(string dir, out string error,
+                                          Action<int, string>? rep = null)
         {
             error = string.Empty;
             try
@@ -215,6 +225,13 @@ namespace WardenSetup
                     //   → WARDEN 拒绝启动（用户看到的现象是"装完打不开"✗✗）
                     try { File.SetLastWriteTimeUtc(target, DateTime.UtcNow); } catch { }
                     n++;
+                    // ★ 逐文件回报（10% ~ 80% 段 ✓ 解压是安装的大头 ✓）
+                    if (rep != null)
+                    {
+                        int total = zip.Entries.Count;
+                        int pct = total > 0 ? 10 + (int)((double)n / total * 70) : 10;
+                        rep(pct, "正在释放文件 " + n + " / " + total + "：" + e.Name);
+                    }
                 }
                 L("释放文件 " + n + " 个 ✓");
                 return n > 0;

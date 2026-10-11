@@ -28,6 +28,10 @@ namespace WardenSetup
         private CheckBox _ckAuto = new CheckBox();
         private CheckBox _ckRed = new CheckBox();
         private TextBox _log = new TextBox();
+        // ★ 安装进度（用户要求：离线安装包也要有进度条 ✓）
+        private readonly ProgressBar _bar = new ProgressBar();
+        private readonly Label _step = new Label();
+        private volatile bool _installing;
 
         private bool DesktopWanted => _ckDesktop.Checked;
         private bool AutostartWanted => _ckAuto.Checked;
@@ -113,6 +117,7 @@ namespace WardenSetup
                 DoInstall();     // 进入第 3 页就开始装 ✓
                 return;
             }
+            if (_installing) { return; }
             Close();
         }
 
@@ -274,23 +279,82 @@ namespace WardenSetup
         // ---------------------------------------------------------------- 第 3 页
         private void BuildInstallPage()
         {
+            _step = new Label
+            {
+                Text = "正在准备安装…",
+                Bounds = new Rectangle(20, 16, 720, 24),
+                Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Bold),
+            };
+            _bar = new ProgressBar
+            {
+                Bounds = new Rectangle(20, 46, 720, 22),
+                Minimum = 0,
+                Maximum = 100,
+                Style = ProgressBarStyle.Continuous,
+                Value = 0,
+            };
             _log = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
-                Bounds = new Rectangle(20, 20, 720, 340),
+                Bounds = new Rectangle(20, 78, 720, 282),
                 BackColor = Color.White,
                 Font = new Font("Consolas", 9F),
             };
+            _body.Controls.Add(_step);
+            _body.Controls.Add(_bar);
             _body.Controls.Add(_log);
         }
 
         private void DoInstall()
         {
             var log = SetupLog.Capture();
-            bool ok = SetupCore.Install(_dir, DesktopWanted, AutostartWanted,
-                                        RedTeamWanted, out string err);
+            _installing = true;
+            _next.Enabled = false;
+            _next.Text = "安装中…";
+            _bar.Value = 0;
+            _step.Text = "正在准备安装…";
+
+            // ★ 装的时候必须在后台线程 ✗
+            //   原来是在 UI 线程同步跑 ✓ 窗口整个冻住 → 用户看到的就是"没有进度"✗
+            var worker = new System.Threading.Thread(() =>
+            {
+                void Report(int pct, string msg)
+                {
+                    try
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            _bar.Value = Math.Max(0, Math.Min(100, pct));
+                            _step.Text = msg;
+                            _log.AppendText(msg + Environment.NewLine);
+                            _log.SelectionStart = _log.TextLength;
+                            _log.ScrollToCaret();
+                        }));
+                    }
+                    catch { }
+                }
+
+                bool ok = SetupCore.Install(_dir, DesktopWanted, AutostartWanted,
+                                            RedTeamWanted, out string err, Report);
+                try
+                {
+                    BeginInvoke(new Action(() => Finish(ok, err, log)));
+                }
+                catch { }
+            })
+            { IsBackground = true };
+            worker.Start();
+        }
+
+        /// <summary>安装结束（回到 UI 线程 ✓）</summary>
+        private void Finish(bool ok, string err, string log)
+        {
+            _installing = false;
+            _bar.Value = ok ? 100 : _bar.Value;
+            _next.Enabled = true;
+
             _log.Text = (log.Length > 0 ? log : "") + Environment.NewLine
                       + (ok ? "✓ 安装完成。" : "★ 安装失败：" + err);
             _log.SelectionStart = _log.TextLength;
@@ -298,7 +362,9 @@ namespace WardenSetup
 
             if (ok)
             {
+                _step.Text = "安装完成 ✓";
                 _title.Text = "第 3 步 / 3：安装完成";
+                _next.Text = "完成";
                 if (MessageBox.Show(this, "安装完成 ✓\n\n现在就启动 WARDEN 吗？",
                         "WARDEN 安装", MessageBoxButtons.YesNo,
                         MessageBoxIcon.Information) == DialogResult.Yes)
@@ -312,6 +378,11 @@ namespace WardenSetup
                     }
                     catch { }
                 }
+            }
+            else
+            {
+                _step.Text = "安装失败 ✗ " + err;
+                _next.Text = "关闭";
             }
         }
     }
