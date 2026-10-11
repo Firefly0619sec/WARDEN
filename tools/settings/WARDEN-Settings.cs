@@ -490,8 +490,8 @@ namespace WardenSettings
             }
 
             var ans = MessageBox.Show(
-                good.Count + WardenLang.Lang.Tr(" 条规则：\n\n「是」→ 追加到现有规则\n"
-                + "「否」→ 替换现有规则\n「取消」→ 什么都不做"),
+                good.Count + WardenLang.Lang.Tr(" 条规则：\n\n「是」= 追加到现有规则\n"
+                + "「否」= 替换现有规则\n「取消」= 什么都不做"),
                 "WARDEN 设置", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (ans == DialogResult.Cancel)
             {

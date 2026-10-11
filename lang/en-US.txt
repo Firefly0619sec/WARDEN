@@ -77,6 +77,7 @@ set.status.stopped=Status: · not running
 set.status.hint=★ To start: double-click WARDEN on the desktop. To stop or pause: right-click the tray icon
 set.lang.label=Language:
 set.lang.hint=Pick a language, then click "Save settings" (bottom left). It takes effect the next time you open this window. Language packs live in the lang folder and are plain text — you can edit them in Notepad.
+Language packs live in the lang\ folder and are plain text — you can edit them in Notepad. ✓
 tray.openSettings=Open settings
 tray.pause=Pause protection
 tray.resume=Resume protection
@@ -156,7 +157,9 @@ ERROR=(startup message)
 ^validation done:\s*(\d+)\s*error\(s\),\s*(\d+)\s*warning\(s\)$	校验完成：{1} 个错误、{2} 个警告
 ^validation done:\s*(.*)$	校验完成：{1}
 ^\[CONFIG\]\s*\[WARN\]\s*(.*?)\s*->\s*(.*)$	★ 配置警告：{1}
+　　建议：{2}
 ^\[CONFIG\]\s*\[ERROR\]\s*(.*?)\s*->\s*(.*)$	★★ 配置错误：{1}
+　　建议：{2}
 ^\[CONFIG\]\s*(.*)$	配置校验：{1}
 ^default config created:\s*(.*)$	第一次运行，已生成默认配置：{1}
 ^loaded config from\s*(.*)$	已读取配置：{1}
@@ -174,17 +177,21 @@ ERROR=(startup message)
 ^\[DECISION\]\s*(.*)$	决策依据：{1}
 ^\[L1-CLOSE\]\s*(.*)$	① 礼貌请求关闭：{1}
 ^\[L2-HIDE\]\s*(.*)$	② 隐藏窗口并请求关闭：{1}
+　　（受保护的进程只用温和手段）
 ^\[L2-DISMISS\]\s*(.*)$	② 劝退（先隐藏再请求关闭）：{1}
 ^\[L3-KILL\]\s*(.*)$	③ 强制结束进程：{1}
 ^\[KILL-ESCALATED\]\s*(.*)$	★★ 手动提权生效 —— 你当场同意了，所以这次动手了：{1}
 ^\[KILL-DENIED\]\s*(.*)$	★ 没有动手：{1}
+　　（安全闸把它拦住了，这是保护机制在起作用）
 ^\[KILL-FAIL\]\s*(.*)$	★ 强制结束失败：{1}
 ^\[GUARD\]\s*(.*)$	★★ 发现"杀了又回来"：{1}
+　　建议用 Geek Uninstaller 之类的专业工具彻底卸载它
 ^\[CONSENT-OK\]\s*(.*)$	★ 你授权了强制手段：{1}
 ^\[CONSENT-KEEP\]\s*(.*)$	★ 你选择继续隐藏：{1}
 ^\[CONSENT-SKIP\]\s*(.*)$	跳过询问：{1}
 ^\[STAGE2\]\s*(.*)$	第二段判据（确认压不住）：{1}
 ^\[DRYRUN\]\s*(.*)$	【演习模式】本来应该执行：{1}
+　　（演习模式只记日志、不动手）
 ^\[CLEARED\]\s*(.*)$	✓ 窗口自己关掉了，问题解决：{1}
 ^\[RECORD\]\s*(.*)$	行为记录：{1}
 ^\[TRAY\]\s*(.*)$	托盘操作：{1}
@@ -343,7 +350,7 @@ WARDEN 设置=WARDEN Settings
 读不了这个文件：\n=Cannot read this file:\n
 这不是 WARDEN 规则文件（里面没有 rules 段）。=This is not a WARDEN rules file (no "rules" section inside).
 没有可导入的规则。=No importable rules found.
- 条规则：\n\n「是」→ 追加到现有规则\n「否」→ 替换现有规则\n「取消」→ 什么都不做= rules:\n\nYes = append to the existing rules\nNo = replace the existing rules\nCancel = do nothing
+ 条规则：\n\n「是」= 追加到现有规则\n「否」= 替换现有规则\n「取消」= 什么都不做= rules:\n\nYes = append to the existing rules\nNo = replace the existing rules\nCancel = do nothing
 导入完成：新增 =Import finished: 
  条= added
 ，跳过 =, skipped 
@@ -416,8 +423,8 @@ WARDEN —— 常规手段已确认失效=WARDEN — normal measures have been c
 位置：=Path: 
 (未知)=(unknown)
 欢迎使用 WARDEN —— 先观察几天，还是立刻开始拦窗口？=Welcome to WARDEN — watch for a few days first, or start blocking right away?
-「是」→ 先开【演习模式】：只记日志、不动手（推荐 ✓ 先看清它会拦谁）=Yes = start in drill mode: log only, never act (recommended — see what it would block first)
-「否」→ 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓=No = start blocking windows now (you can switch back any time on the Protection tab in Settings)
+「是」= 先开【演习模式】：只记日志、不动手（推荐 ✓ 先看清它会拦谁）=Yes = start in drill mode: log only, never act (recommended — see what it would block first)
+「否」= 立刻开始拦窗口（之后想改，设置界面「保护」页随时切 ✓=No = start blocking windows now (you can switch back any time on the Protection tab in Settings)
 ★ WARDEN 不联网、不注册，装完就能用 ✓=★ WARDEN is offline and needs no account — install and it works
 WARDEN 首次运行=WARDEN first run
 help.sec.license=Open-source licences
