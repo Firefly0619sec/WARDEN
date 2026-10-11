@@ -224,6 +224,10 @@ namespace WardenUninstall
                 {
                     int id = (int)(w.ToInt64() & 0xFFFF);
                     int code = (int)((w.ToInt64() >> 16) & 0xFFFF);
+                    // ★ 2026-10-11 修：Esc 键要能关窗（清单第 19 条 ✓ WinForms 版本来就能 ✓）
+                    //   机制：IsDialogMessageW 会把 Esc 翻成 WM_COMMAND(IDCANCEL=2) ✗
+                    //   我只处理了自定义的 ID_CANCEL=102 ✗ 所以 Esc 一直没反应 ✓（实测发现的 ✓）
+                    if (id == 2 && (code == 0 || code == 1)) { OnCancel(h); return IntPtr.Zero; }   // IDCANCEL（Esc ✓）
                     if (code == 0)
                     {
                         if (id == ID_OK) { OnOk(h); return IntPtr.Zero; }
