@@ -95,6 +95,8 @@ namespace WardenUninstall
         [DllImport("user32.dll")] private static extern int GetSystemMetrics(int i);
         [DllImport("user32.dll")] private static extern bool SetProcessDpiAwarenessContext(IntPtr v);
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr h);
+        // ★ 2026-10-11：系统 DPI（建窗之前就要知道 ✓ 见 Ask 里的说明）
+        [DllImport("user32.dll")] private static extern uint GetDpiForSystem();
         [DllImport("user32.dll")] private static extern int MessageBoxW(IntPtr h, string text, string caption, uint type);
         [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr h);
         [DllImport("gdi32.dll")] private static extern IntPtr GetStockObject(int i);   // ★ 2026-10-11 修：原来错写成 user32 ✗ 导致 OnCreate 抛异常、控件全没建成 ✓
@@ -139,6 +141,21 @@ namespace WardenUninstall
             L("Ask 开始 defaultPurge=" + defaultPurge + " dataMb=" + _dataMb);
             try { SetProcessDpiAwarenessContext((IntPtr)(-4)); } catch { }   // PER_MONITOR_AWARE_V2 ✓
             L("DPI 设置完成 ✓");
+            // ★ 建窗之前先定缩放（子控件在 WM_CREATE 里就要用它 ✓）
+            _scale = GetDpiForSystem() / 96.0;
+            // 高 DPI 验收用的测试钩子：设了 WARDEN_TEST_DPI=120/144/192 就按该 DPI 渲染 ✓
+            //   （不修改系统缩放也能验证 125%/150%/200% 布局 ✓ 生产不设此变量则无影响 ✓）
+            try
+            {
+                string? forced = Environment.GetEnvironmentVariable("WARDEN_TEST_DPI");
+                if (!string.IsNullOrEmpty(forced) && uint.TryParse(forced, out uint fd) && fd >= 96)
+                {
+                    _scale = fd / 96.0;
+                    L("★ 测试钩子生效：按 DPI " + fd + " 渲染（缩放 " + _scale.ToString("0.00") + "x）");
+                }
+                else { L("系统 DPI 缩放 = " + _scale.ToString("0.00") + "x"); }
+            }
+            catch { }
 
             IntPtr inst = GetModuleHandleW(null);
             _clsName = Marshal.StringToHGlobalUni(Cls);   // ★ 自己分配原生字符串 ✓
@@ -170,22 +187,12 @@ namespace WardenUninstall
             }
 
             L("CreateWindowExW hwnd=" + _hwnd);
+            // ★ 2026-10-11 高 DPI 验收发现并修掉的真 bug：
+            //   原来 _scale 是【建窗之后】才算的 ✗ 而子控件是在 WM_CREATE 里用 S() 定位的 ✓
+            //   → 高 DPI 下窗口变大了、控件却还是 100% 的坐标与尺寸 ✗（实测 144 DPI：窗口 864x554，控件仍 520x26 ✓）
+            //   现在改成【建窗之前】就先按系统 DPI 定好 _scale ✓ 两者才一致 ✓
             uint dpi = GetDpiForWindow(_hwnd);
-            _scale = dpi > 0 ? dpi / 96.0 : 1.0;
-            // ★ 2026-10-11 高 DPI 验收用的测试钩子：
-            //   设了 WARDEN_TEST_DPI=120/144/192 就按该 DPI 渲染 ✓
-            //   用途：不修改系统缩放（那要注销 ✓ 会影响用户桌面）也能验证 125%/150%/200% 布局 ✓
-            //   生产环境不设这个变量 → 完全无影响 ✓
-            try
-            {
-                string? forced = Environment.GetEnvironmentVariable("WARDEN_TEST_DPI");
-                if (!string.IsNullOrEmpty(forced) && uint.TryParse(forced, out uint fd) && fd >= 96)
-                {
-                    _scale = fd / 96.0;
-                    L("★ 测试钩子生效：按 DPI " + fd + " 渲染（缩放 " + _scale.ToString("0.00") + "x ✓）");
-                }
-            }
-            catch { }
+            L("窗口 DPI=" + dpi + "；本次使用的缩放=" + _scale.ToString("0.00") + "x（建窗前已定好 ✓）");
             int wReal = S(wWin), hReal = S(hWin);
             SetWindowPos(_hwnd, IntPtr.Zero, (GetSystemMetrics(0) - wReal) / 2, (GetSystemMetrics(1) - hReal) / 2,
                 wReal, hReal, 0x0004 /*SWP_NOZORDER*/);
