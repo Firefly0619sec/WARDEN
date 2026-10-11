@@ -51,6 +51,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -138,6 +139,12 @@ public static string DetectCode()
             //    简中 / 英语 / 繁中（台灣·香港·澳門 各自一份 ✓ 用词不同 ✗）
             var avail = Available();
             string ui = System.Globalization.CultureInfo.CurrentUICulture.Name;
+            // ★★★ 0.3.3 全量测试抓到的真缺陷：Native AOT 开了 InvariantGlobalization 之后
+            //     CurrentUICulture 恒为 InvariantCulture（Name 是空串 ✗）→ 下面整套判定形同虚设 ✗
+            //     中文机器上一路滑进英语分支 → 设置界面变英文 ✗
+            //     （而主程序 L.cs 的兜底是简体中文 ✓ 两边口径不一致 = 用户点「设置」看到英文 ✓）
+            //     → 空串时直接问 Windows 要界面语言 ✓（见 OsUiName ✓）
+            if (ui.Length == 0) { ui = OsUiName(); }
 
             string want;
             if (ui.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase)
@@ -164,11 +171,19 @@ public static string DetectCode()
             {
                 want = "zh-Hans";   // 简中（含 zh-CN / zh-SG）✓
             }
+            else if (ui.StartsWith("en-US", StringComparison.OrdinalIgnoreCase))
+            {
+                want = "en-US";         // 美式英语 ✓
+            }
+            else if (ui.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+            {
+                want = "en-GB";         // 其它英语 → 英式 ✓（用户要求先补英式）
+            }
             else
             {
-                want = ui.StartsWith("en-US", StringComparison.OrdinalIgnoreCase)
-                    ? "en-US"          // 美式英语 ✓
-                    : "en-GB";         // 其它英语 → 英式 ✓（用户要求先补英式）
+                // ★ 认不出来（含空区域性 ✗）→ 与主程序 L.cs 第 185 行同口径：简体中文 ✓
+                //   原来这里默认 en-GB ✗ 中文机器没设 lang 时整个界面变英文 ✓（真缺陷 ✓）
+                want = "zh-Hans";
             }
 
             if (avail.Contains(want))
@@ -181,6 +196,43 @@ public static string DetectCode()
             }
             return "zh-Hans";
         }
+
+        /// <summary>
+        /// ★ 系统界面语言（Windows 口味，例：zh-CN / zh-TW / en-US ✓）
+        ///
+        ///   【为什么不能只用 CultureInfo.CurrentUICulture】
+        ///     WARDEN 全线是 Native AOT + InvariantGlobalization=true ✓（体积小 ✓）
+        ///     代价：CurrentUICulture 恒为 InvariantCulture，Name 是【空串】✗
+        ///     → 靠它判定语言等于没判定 ✗（中文机器上界面会变英文 ✗ 真缺陷 ✓）
+        ///   → 直接问 Windows：GetUserDefaultUILanguage 拿 LANGID 再翻成语言代码 ✓
+        ///     （拿不到就问系统默认，再拿不到返回空串 → 上层兜底简体中文 ✓）
+        /// </summary>
+        internal static string OsUiName()
+        {
+            try
+            {
+                ushort langid = GetUserDefaultUILanguage();
+                if (langid == 0) { langid = GetSystemDefaultUILanguage(); }
+                switch (langid)
+                {
+                    case 0x0404: return "zh-TW";        // 台灣
+                    case 0x0C04: return "zh-HK";        // 香港
+                    case 0x1404: return "zh-MO";        // 澳門
+                    case 0x0804:                        // 大陆
+                    case 0x1004: return "zh-CN";        // 新加坡（简体 ✓）
+                    case 0x0409: return "en-US";
+                    case 0x0809: return "en-GB";
+                }
+                int primary = langid & 0x3FF;
+                if (primary == 0x04) { return "zh-CN"; }    // 其它中文地区 → 简体 ✓
+                if (primary == 0x09) { return "en-US"; }    // 其它英语地区 → 美式 ✓
+                return "";
+            }
+            catch { return ""; }
+        }
+
+        [DllImport("kernel32.dll")] private static extern ushort GetUserDefaultUILanguage();
+        [DllImport("kernel32.dll")] private static extern ushort GetSystemDefaultUILanguage();
 
         /// <summary>★ 有哪些语言可用（内置 + 用户放的）。</summary>
         /// <summary>

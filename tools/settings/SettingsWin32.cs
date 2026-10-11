@@ -121,8 +121,10 @@ namespace WardenSettings
         private const uint ES_LEFT = 0x0000, ES_MULTILINE = 0x0004, ES_AUTOVSCROLL = 0x0040,
                            ES_AUTOHSCROLL = 0x0080, ES_READONLY = 0x0800;
         private const uint CBS_DROPDOWNLIST = 0x0003, CBS_HASSTRINGS = 0x0200;
-        private const uint SS_LEFT = 0x00000000;
+        private const uint SS_LEFT = 0x00000000, SS_NOPREFIX = 0x00000080;
         private const uint TCS_TABS = 0x0000, TCS_MULTILINE = 0x0200;
+        // ★ 页签切换通知：TCN_FIRST = -550 → TCN_SELCHANGE = -551 ✓（真 SysTabControl32 才发 ✓）
+        private const int TCN_SELCHANGE = -551;
         private const uint LVS_REPORT = 0x0001, LVS_SINGLESEL = 0x0004, LVS_SHOWSELALWAYS = 0x0008;
 
         private const uint WM_CREATE = 0x0001, WM_DESTROY = 0x0002, WM_SIZE = 0x0005,
@@ -210,6 +212,9 @@ namespace WardenSettings
         private const int CLR_RED = 0x000000FF;     // Color.Red
         private const int CLR_HARD_BG = 0x00F6F6F6;  // RGB(246,246,246) 只读硬黑名单底色
         private const int CLR_BLACK = 0x00000000;
+        // ★ 0.3.3：真 STATIC 标签要底色笔刷（原来靠 DefWindowProc 兜底 ✗ 会画灰方块 ✓）
+        private const int CLR_PAGE_BG = 0x00FFFFFF;  // 白（页面底色 ✓ 与类背景刷一致 ✓）
+        private const int CLR_BAR_BG = 0x00F0F0F0;   // RGB(240,240,240) 底栏浅灰（与内容区分开 ✓）
 
         // 布局基准（规格：客户区 830x640 ✓）
         private const int BASE_W = 830, BASE_H = 640, BOTTOM_H = 56;
@@ -657,6 +662,15 @@ namespace WardenSettings
                 case WM_NOTIFY:
                 {
                     var nh = *(NMHDR*)l;
+                    // ★ 真 SysTabControl32 才会发 TCN_SELCHANGE ✓（自建假页签永远不发 ✗）
+                    //   TCN_SELCHANGE = TCN_FIRST-1 = -551 ✓ 用 uint 比较要写 unchecked ✓
+                    if (nh.code == unchecked((uint)TCN_SELCHANGE))
+                    {
+                        long sel = SendMessageW(_tabs, TCM_GETCURSEL, IntPtr.Zero, IntPtr.Zero).ToInt64();
+                        L("WM_NOTIFY TCN_SELCHANGE → 用户点了页签 #" + sel);
+                        ShowPage((int)sel);
+                        return IntPtr.Zero;
+                    }
                     if (nh.code == unchecked((uint)UDN_DELTAPOS) && (int)nh.idFrom == ID_NUM_LINES)
                     {
                         var nu = *(NMUPDOWN*)l;
@@ -697,11 +711,30 @@ namespace WardenSettings
                         SetTextColor(l, CLR_BLACK);
                         return Bg(CLR_HARD_BG);
                     }
-                    return DefWindowProcW(h, m, w, l);
+                    // ★ 其余真 STATIC 标签：透明底 + 黑字 + 返回页面底色笔刷 ✓
+                    //   （原来是 DefWindowProc 兜底 ✗ 真 STATIC 配自建父窗口会画出灰底方块 ✗）
+                    SetBkMode(l, TRANSPARENT);
+                    SetTextColor(l, CLR_BLACK);
+                    return Bg(CLR_PAGE_BG);
 
                 case WM_TIMER:
                     UpdateStatus();
                     return IntPtr.Zero;
+
+                case WM_PAINT:
+                    // ★ 底栏画成浅灰条 ✓（自建容器类只有白底 ✗ 底栏和内容区分不开 ✗）
+                    //   其余容器（页面 / 规则宿主）交给类背景刷 hbrBackground 自动涂 ✓
+                    if (h == _bottom)
+                    {
+                        PAINTSTRUCT ps;
+                        IntPtr dc = BeginPaint(h, out ps);
+                        RECT rc;
+                        GetClientRect(h, out rc);
+                        FillRect(dc, ref rc, Bg(CLR_BAR_BG));
+                        EndPaint(h, ref ps);
+                        return IntPtr.Zero;
+                    }
+                    break;
 
                 case WM_SETFOCUS:
                     if (_lvRules != IntPtr.Zero) { SetFocus(_lvRules); }
@@ -721,6 +754,19 @@ namespace WardenSettings
                     return IntPtr.Zero;
             }
             return DefWindowProcW(h, m, w, l);
+        }
+
+        /// <summary>
+        /// ★ 把容器压到兄弟窗口的最底下 ✓（HWND_BOTTOM = 1 ✓）
+        ///   【为什么需要】实测：CreateWindowExW 建的子窗口是【后建的在下】✗
+        ///   → 先建的容器（底栏 / 规则宿主）会盖住后建的按钮 ✗ 真鼠标点不到（命中测试证明 ✓）
+        /// </summary>
+        private static void PushToBottom(IntPtr h)
+        {
+            if (h == IntPtr.Zero) { return; }
+            // SWP_NOSIZE=0x0001 | SWP_NOMOVE=0x0002 | SWP_NOACTIVATE=0x0010
+            SetWindowPos(h, (IntPtr)1 /*HWND_BOTTOM*/, 0, 0, 0, 0, 0x0001 | 0x0002 | SWP_NOACTIVATE);
+            L("容器压到最底 ✓ hwnd=" + h);
         }
 
         /// <summary>规则页的可滚动容器（对应旧版 AutoScroll 面板 ✓）</summary>
@@ -754,6 +800,23 @@ namespace WardenSettings
                 }
                 case WM_GETDLGCODE:
                     return (IntPtr)(0x0400);
+
+                case WM_COMMAND:
+                {
+                    // ★★★ 0.3.3 实测抓到的第五个真缺陷（和 Help 那次同类 ✓）：
+                    //   规则页那五个按钮【挂在规则宿主窗口下】✗
+                    //   → 按钮的 WM_COMMAND 发给父窗口 = 宿主 ✗
+                    //   → 宿主的窗口过程只认滚动消息，其余的丢给 DefWindowProc ✗ → 命令被吞 ✓
+                    //   实证：BM_CLICK 与直接发 WM_COMMAND 都没有任何日志 ✗（全哑 ✓）
+                    //   → 这里必须转发给同一个命令分发器 ✓（转发前照样记一条诊断日志 ✓）
+                    long raw = w.ToInt64();
+                    int cid = (int)(raw & 0xFFFF);
+                    int ccode = (int)((raw >> 16) & 0xFFFF);
+                    L("WM_COMMAND(经规则宿主转发) raw=" + raw + " → id=" + cid + " code=" + ccode
+                      + " 控件=" + CtrlName(cid) + " 发送者=" + l.ToInt64());
+                    _lastCommandHwnd = l;
+                    return OnCommand(h, cid, ccode, l);
+                }
             }
             return DefWindowProcW(h, m, w, l);
         }
@@ -782,9 +845,24 @@ namespace WardenSettings
             _statusBrush = Bg(CLR_HARD_BG);
 
             // ---- 页签 ----
-            _tabs = CreateWindowExW(WS_EX_CONTROLPARENT, _clsPagePtr, Sz(""),    // 自建类：不吞 WM_COMMAND ✓
-                WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | TCS_TABS | TCS_MULTILINE,
+            // ★★★ 0.3.3 全量测试抓到的第三个真缺陷（致命）：所有控件原来是【自建窗口类】✗
+            //   自建类 = 没有 WM_PAINT、没有点击处理 ✗ → 整窗只有系统控件（下拉框/列表）能看见 ✗
+            //   截图实证：窗口里一片白，按钮、标签、页签、编辑框【一个都画不出来】✗
+            //   → 全部改成【真系统控件类】✓ 让系统自己画、自己处理点击 ✓
+            //     STATIC=标签 / BUTTON=按钮+复选框 / EDIT=文本框 / SysTabControl32=页签 ✓
+            //   自建类只留给【容器】（页面 / 底栏 / 规则宿主）✓ 它们有 hbrBackground 会自己涂底色 ✓
+            _tabs = CreateWindowExW(WS_EX_CONTROLPARENT, Sz("SysTabControl32"), Sz(""),
+                // ★ WS_CLIPCHILDREN 必须有 ✓：真 SysTabControl32 重绘时会盖住页里的控件 ✗
+                //   （第一次换真类时漏了它 → 页签出来了、页里的控件全被涂白 ✗ 截图抓到 ✓）
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
+                | TCS_TABS | TCS_MULTILINE,
                 0, 0, S(BASE_W), S(BASE_H - BOTTOM_H), h, (IntPtr)ID_TABS, IntPtr.Zero, IntPtr.Zero);
+            // ★★★ 0.3.3 实测抓到的第四个真缺陷（致命）：Win32 的子窗口是【后建的排在下】✗
+            //    → 先建的容器会【盖住】后建的控件 ✗（和 WinForms 的直觉相反 ✗）
+            //    实证：z 序 = _bottom(第1个建的) 在最上面，101/102/103 全在它下面 ✗
+            //          WindowFromPoint(按钮中心) 返回的是 _bottom ✗ → 真鼠标永远点不到按钮 ✗
+            //    → 建完把容器压到最底 ✓（HWND_BOTTOM=1 ✓）
+            PushToBottom(_bottom);
             if (_tabs == IntPtr.Zero)
             {
                 L("★ 页签容器创建失败 err=" + Marshal.GetLastWin32Error());
@@ -894,7 +972,9 @@ namespace WardenSettings
         /// <summary>标签：统一工厂 h=20 ✓（规格「标签(x,y,w) → Size(w,20)」✓）</summary>
         private static IntPtr Lab(IntPtr parent, string text, int x, int y, int w, int hgt, int id, IntPtr font)
         {
-            IntPtr c = CreateWindowExW(0, _clsPagePtr, Sz(text), WS_CHILD | WS_VISIBLE | SS_LEFT,
+            // ★ 真 STATIC ✓（自建类画不出字 ✗ 见 BuildControls 顶上那段注释 ✓）
+            IntPtr c = CreateWindowExW(0, Sz("STATIC"), Sz(text),
+                WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
                 S(x), S(y), S(w), S(hgt), parent, (IntPtr)id, IntPtr.Zero, IntPtr.Zero);
             if (c != IntPtr.Zero)
             {
@@ -907,7 +987,8 @@ namespace WardenSettings
 
         private static IntPtr Btn(IntPtr parent, string text, int x, int y, int w, int hgt, int id, bool def)
         {
-            IntPtr c = CreateWindowExW(0, _clsPagePtr, Sz(text),
+            // ★ 真 BUTTON ✓（系统自己画、自己发 WM_COMMAND/BN_CLICKED ✓）
+            IntPtr c = CreateWindowExW(0, Sz("BUTTON"), Sz(text),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | (def ? BS_DEFPUSHBUTTON : BS_PUSHBUTTON),
                 S(x), S(y), S(w), S(hgt), parent, (IntPtr)id, IntPtr.Zero, IntPtr.Zero);
             if (c != IntPtr.Zero)
@@ -922,7 +1003,8 @@ namespace WardenSettings
         /// <summary>复选框：统一工厂 700x24 ✓（规格「复选框(x,y) → Size(700,24) 带初值」✓）</summary>
         private static IntPtr Chk(IntPtr parent, int id, string text, int x, int y, bool val)
         {
-            IntPtr c = CreateWindowExW(0, _clsPagePtr, Sz(text),
+            // ★ 真 BUTTON + BS_AUTOCHECKBOX ✓（自建类挂这个样式等于没挂 ✗ 勾都画不出来 ✓）
+            IntPtr c = CreateWindowExW(0, Sz("BUTTON"), Sz(text),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
                 S(x), S(y), S(700), S(24), parent, (IntPtr)id, IntPtr.Zero, IntPtr.Zero);
             if (c != IntPtr.Zero)
@@ -941,7 +1023,7 @@ namespace WardenSettings
         /// </summary>
         private static IntPtr Num(IntPtr parent, int editId, int x, int y, int val, int min, int max)
         {
-            IntPtr ed = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            IntPtr ed = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_LEFT | ES_AUTOHSCROLL,
                 S(x), S(y), S(95), S(24), parent, (IntPtr)editId, IntPtr.Zero, IntPtr.Zero);
             if (ed == IntPtr.Zero)
@@ -1100,20 +1182,20 @@ namespace WardenSettings
         private static void BuildListsPage()
         {
             Lab(_pageLists, WardenLang.Lang.Tr("白名单（这些进程永不处理，一行一个）"), 8, 8, 380, 20, ID_LBL_WL, _fontBase);
-            _txtWl = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtWl = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
                 S(8), S(30), S(380), S(150), _pageLists, (IntPtr)ID_TXT_WL, IntPtr.Zero, IntPtr.Zero);
             SendMessageW(_txtWl, WM_SETFONT, _fontBase, (IntPtr)1);
 
             Lab(_pageLists, WardenLang.Lang.Tr("永久允许强杀（一行一个）"), 400, 8, 380, 20, ID_LBL_CONSENT, _fontBase);
-            _txtConsent = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtConsent = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
                 S(400), S(30), S(380), S(150), _pageLists, (IntPtr)ID_TXT_CONSENT, IntPtr.Zero, IntPtr.Zero);
             SendMessageW(_txtConsent, WM_SETFONT, _fontBase, (IntPtr)1);
 
             Lab(_pageLists, "★ 强杀历史（用于检测\"杀了又复活\"，清空可重置判定）", 8, 192, 600, 20, ID_LBL_TERMHIST, _fontBase);
             // ★ 这一行刻意留中文字面量（与原版一字不差 ✓ 原文就没有走语言包 ✓）
-            _txtTermHist = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtTermHist = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
                 S(8), S(216), S(380), S(140), _pageLists, (IntPtr)ID_TXT_TERMHIST, IntPtr.Zero, IntPtr.Zero);
             SendMessageW(_txtTermHist, WM_SETFONT, _fontBase, (IntPtr)1);
@@ -1135,7 +1217,7 @@ namespace WardenSettings
             _ckBlock = Chk(_pageSafety, ID_CK_BLOCK, WardenLang.Lang.Tr("★ 自校验失败时拒绝运行（拉停）"), 10, y, true); y += 46;
 
             Lab(_pageSafety, WardenLang.Lang.Tr("期望的自身哈希（签名脚本会写入）"), 10, y, 400, 20, ID_LBL_HASHTITLE, _fontBase); y += 24;
-            _txtHash = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtHash = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_LEFT | ES_AUTOHSCROLL,
                 S(10), S(y), S(600), S(24), _pageSafety, (IntPtr)ID_TXT_HASH, IntPtr.Zero, IntPtr.Zero);
             SendMessageW(_txtHash, WM_SETFONT, _fontBase, (IntPtr)1); y += 32;
@@ -1144,7 +1226,7 @@ namespace WardenSettings
 
             Lab(_pageSafety, WardenLang.Lang.Tr("── 硬黑名单（系统关键进程，永不强杀，不可修改）──"), 10, y, 620, 20, ID_LBL_HARD, _fontBase); y += 24;
 
-            _txtHard = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtHard = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | ES_LEFT | ES_MULTILINE
                 | ES_AUTOVSCROLL | ES_READONLY,
                 S(10), S(y), S(760), S(190), _pageSafety, (IntPtr)ID_TXT_HARD, IntPtr.Zero, IntPtr.Zero);
@@ -1169,7 +1251,7 @@ namespace WardenSettings
             Lab(_pageLog, WardenLang.Lang.Tr("行（最近的）"), 194, 6, 90, 20, ID_LBL_LINES, _fontBase);
             Btn(_pageLog, WardenLang.Lang.Tr("打开日志所在文件夹"), 290, 0, 170, 28, ID_BTN_OPENFOLDER, false);
 
-            _txtLog = CreateWindowExW(0, _clsPagePtr, Sz(""),
+            _txtLog = CreateWindowExW(0, Sz("EDIT"), Sz(""),
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | WS_HSCROLL
                 | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY,
                 S(0), S(36), S(770), S(470), _pageLog, (IntPtr)ID_TXT_LOG, IntPtr.Zero, IntPtr.Zero);
@@ -1317,7 +1399,14 @@ namespace WardenSettings
             {
                 if (pages[i] == IntPtr.Zero) { continue; }
                 ShowWindow(pages[i], i == idx ? SW_SHOW : 0 /*SW_HIDE*/);
+                if (i == idx)
+                {
+                    // ★ 切页后强制重画 ✓（真页签重绘会盖住页面 ✗ 不重画就一片白 ✓ 截图抓到过 ✓）
+                    InvalidateRect(pages[i], IntPtr.Zero, true);
+                    UpdateWindow(pages[i]);
+                }
             }
+            if (_tabs != IntPtr.Zero) { InvalidateRect(_tabs, IntPtr.Zero, true); UpdateWindow(_tabs); }
             L("页签切换到 #" + idx + "（" + TabName(idx) + "）✓");
         }
 

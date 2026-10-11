@@ -147,6 +147,12 @@ namespace WARDEN
             try
             {
                 string ui = System.Globalization.CultureInfo.CurrentUICulture.Name;
+                // ★★★ 0.3.3 全量测试抓到的真缺陷：Native AOT + InvariantGlobalization=true 之下
+                //     CurrentUICulture 恒为 InvariantCulture（Name = 空串 ✗）
+                //     → 这个分支等于没走，一律落到 ③ 兜底简体中文 ✗
+                //       中文机器看不出来 ✓ 但英语机器也一律变中文 ✗（六语言白做 ✓）
+                //     → 空串时直接问 Windows 要界面语言 ✓（见 OsUiName ✓）
+                if (ui.Length == 0) { ui = OsUiName(); }
                 if (ui.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase)
                     || ui.StartsWith("zh-Hant-TW", StringComparison.OrdinalIgnoreCase))
                 {
@@ -184,6 +190,44 @@ namespace WARDEN
             }
             return "zh-Hans";
         }
+
+        /// <summary>
+        /// ★ 系统界面语言（Windows 口味，例：zh-CN / zh-TW / en-US ✓）
+        ///
+        ///   【为什么不能只用 CultureInfo.CurrentUICulture】
+        ///     WARDEN.exe 是 Native AOT + InvariantGlobalization=true ✓（体积小 ✓）
+        ///     代价：CurrentUICulture 恒为 InvariantCulture，Name 是【空串】✗
+        ///     → 用空串做判定必然认不出来 ✗ → 直接问 Windows 要 ✓
+        ///   GetUserDefaultUILanguage 在 kernel32 ✓ 返回 LANGID（0x0804 = 大陆简中 ✓）
+        /// </summary>
+        private static string OsUiName()
+        {
+            try
+            {
+                ushort langid = GetUserDefaultUILanguage();
+                if (langid == 0) { langid = GetSystemDefaultUILanguage(); }
+                switch (langid)
+                {
+                    case 0x0404: return "zh-TW";        // 台灣
+                    case 0x0C04: return "zh-HK";        // 香港
+                    case 0x1404: return "zh-MO";        // 澳門
+                    case 0x0804:                        // 大陆
+                    case 0x1004: return "zh-CN";        // 新加坡（简体 ✓）
+                    case 0x0409: return "en-US";
+                    case 0x0809: return "en-GB";
+                }
+                int primary = langid & 0x3FF;
+                if (primary == 0x04) { return "zh-CN"; }
+                if (primary == 0x09) { return "en-US"; }
+                return "";
+            }
+            catch { return ""; }
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern ushort GetUserDefaultUILanguage();
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern ushort GetSystemDefaultUILanguage();
 
         /// <summary>语言包搜索目录：exe\lang\ 优先，其次数据目录\lang\ ✓</summary>
         private static IEnumerable<string> Dirs()

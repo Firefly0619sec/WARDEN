@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- ========================================================================
-       WARDEN 设置工具 —— 独立窗口版
+       WARDEN 设置工具 —— 原生 Win32/GDI + Native AOT（2026-10-11 · 0.3.3）
 
        【为什么要单独一个工程】
            用户反馈：原来的 PowerShell 版设置界面 ✗
@@ -9,21 +9,26 @@
              因为 powershell.exe 就是界面的宿主 ✗
            → 改成独立的 exe ✓ 双击就跑 ✓ 不依赖 PowerShell ✓
 
-       【为什么不跟 WARDEN 本体放一起】
-           WARDEN 本体是 Native AOT ✗
-           而 WinForms 在 AOT 下【不可用】✗✗✗
-           → 所以设置工具单独编译 ✓ 两者解耦 ✓
-           → WARDEN 本体保持 3.5MB 的小体积和 50ms 启动 ✓
+       【★ 为什么不再用 WinForms】（Beta 3 的最后一站 ✓）
+           · WinForms 在 Native AOT 下【不可用】✗（PublishAot 直接编译失败 ✓）
+           · 原来只能 SelfContained 单文件 = 47.03 MB ✗
+             而真正的界面代码只有几百 KB ✓
+           → 界面改写成原生控件（SysTabControl32 / SysListView32 / EDIT /
+             BUTTON / COMBOBOX / msctls_updown32 ✓ 见 SettingsWin32.cs ✓）
+           → 与 uninstaller 0.3.0 / updater 0.3.1 / logview 0.3.2 同一套做法 ✓
+           → 产物一个 exe 几 MB，机器上不用装 .NET ✓
 
-       【为什么不开 PublishAot】
-           开了就没法用 WinForms ✗
-           这个工具不需要 AOT：它只在用户点"设置"时才运行 ✓
+       【★ app.manifest 是必需的】
+           规则表第一列是复选框（LVS_EX_CHECKBOXES）、页签是 SysTabControl32 ✓
+           没有 comctl32 v6 清单 → 加载的是第 5 版 ✗ 复选框画成旧式 +/- 方框 ✗
+           （WinForms 版是 .NET 自动加清单的 ✗ 原生版必须自己声明 ✓）
        ======================================================================== -->
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
+    <!-- ★ WinForms 彻底退场（这也是能开 AOT 的前提 ✓） -->
+    <UseWindowsForms>false</UseWindowsForms>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Settings</AssemblyName>
@@ -33,24 +38,25 @@
     <Authors>Firefly0619sec</Authors>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
 
-    <!-- ★ 不做 AOT（AOT 下 WinForms 不可用） -->
-    <PublishAot>false</PublishAot>
+    <!-- ★ 原生 AOT：一个自包含的 exe，不依赖目标机装 .NET ✓ -->
+    <PublishAot>true</PublishAot>
+    <!-- ★ 窗口过程要用 delegate* unmanaged[Stdcall] 与指针（unsafe ✓） -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- ★ 这个工具不做区域性相关的格式化 → 关掉 ICU 依赖，体积更小 ✓ -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- ★ 体积优先（用户要求产物 < 8 MB ✓） -->
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <!-- ★ 符号剥离（发布产物不带 .pdb ✓） -->
+    <StripSymbols>true</StripSymbols>
 
-    <!-- 自包含发布：用户机器上不用另装 .NET 运行时 -->
-    <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-
-    <!-- 单文件：就是一个 exe，好分发 -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-
-    <!-- 裁剪掉没用的东西，压体积。
-         ★ 注意：WinForms 对裁剪比较敏感，所以用 partial 模式（保守） -->
-    <PublishTrimmed>false</PublishTrimmed>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <InvariantTimezone>true</InvariantTimezone>
+    <!-- ★ comctl32 v6 + 高 DPI 感知（见文件头说明 ✓） -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
 
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <DebugType>none</DebugType>
+    <!-- ★ 去掉 WinForms 之后这里不再需要单文件/裁剪/压缩那套（AOT 本身就是单文件 ✓） -->
   </PropertyGroup>
 
   <!-- ★ 语言包作为内嵌资源（找不到外部语言包时用它保底） -->
