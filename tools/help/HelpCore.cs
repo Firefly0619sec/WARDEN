@@ -28,7 +28,7 @@ namespace WardenHelp
 
     internal static class Program
     {
-        internal const string Version = "0.3.6";
+        internal const string Version = "0.3.7";
         internal const string AppName = "WARDEN";
 
         /// <summary>★ 反馈提交地址（仓库硬编码，防止被改配置引到恶意仓库）。</summary>
