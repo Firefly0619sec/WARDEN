@@ -1050,6 +1050,12 @@ namespace WARDEN
                         Log("★ 自校验未通过，但配置允许继续运行（仅告警）✗");
                     }
                 }
+                // ★ 0.3.6（CP3）：开机启动项自检 —— 只报告，绝不修复 ✓
+                //    防的是"把 Run 项改指向别的程序"这种很阴的做法：
+                //    程序自己还在跑，只是以后开机启动的是别人的 exe ✗
+                try { Log("[自检] " + StartupGuard.Check(SelfCheck.SelfPath)); }
+                catch (Exception ge) { Log("· 启动自检异常（不影响使用）：" + ge.GetType().Name); }
+
                 Log($"启动 pid={Environment.ProcessId}  扫描间隔={SweepIntervalMs}ms");
                 Log($"  硬黑名单条目={Safety.HardBlock.Count}  系统目录标记={Safety.SystemDirMarkers.Length}");
                 Log($"  沙箱模式={Safety.InSandboxMode}"
