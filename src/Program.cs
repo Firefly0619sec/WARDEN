@@ -1056,6 +1056,11 @@ namespace WARDEN
                 try { Log("[自检] " + StartupGuard.Check(SelfCheck.SelfPath)); }
                 catch (Exception ge) { Log("· 启动自检异常（不影响使用）：" + ge.GetType().Name); }
 
+                // ★ 0.3.6（CP1）：配置安全字段完整性 —— 检测配置被别的程序改过 ✓
+                //    只报告不阻断 ✓ 快照用 DPAPI 加密（绑定当前用户 ✓ 顺手重算哈希不好使 ✓）
+                try { Log("[完整性] " + ConfigIntegrity.CheckAndRefresh(File.ReadAllText(ConfigPath))); }
+                catch (Exception ie) { Log("· 配置完整性检查异常（不影响使用）：" + ie.GetType().Name); }
+
                 Log($"启动 pid={Environment.ProcessId}  扫描间隔={SweepIntervalMs}ms");
                 Log($"  硬黑名单条目={Safety.HardBlock.Count}  系统目录标记={Safety.SystemDirMarkers.Length}");
                 Log($"  沙箱模式={Safety.InSandboxMode}"
