@@ -141,7 +141,32 @@ namespace WardenLogView
             {
                 File.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(false));
                 LogViewWin32.L("导出报告成功：" + outPath + "（" + sb.Length + " 字符，当前文件 " + name + "）");
-                LogViewWin32.Msg(owner, "报告已导出：\n\n" + Path.GetFileName(outPath),
+
+                // ★ 0.3.6（CP4）：同时导出一份【脱敏版】✓
+                //   为什么另出一份而不是直接脱敏原报告：
+                //     原报告是取证用的 ✗ 脱敏后就丢了证据价值 ✓
+                //     而用户拿去找人看/发帖时又需要不带 PII 的版本 ✓
+                //     → 两份都给 ✓ 用户自己选哪份外发 ✓（不动原算法与原文案 ✓）
+                string? dir2 = Path.GetDirectoryName(outPath);
+                if (string.IsNullOrEmpty(dir2)) { dir2 = desktop; }
+                string maskedPath = Path.Combine(dir2!,
+                    Path.GetFileNameWithoutExtension(outPath) + ".masked.md");
+                string extra = "";
+                try
+                {
+                    int hits;
+                    string masked = RedactText(sb.ToString(), out hits);
+                    File.WriteAllText(maskedPath, masked, new UTF8Encoding(false));
+                    extra = "\n\n另外生成了一份脱敏版：\n" + Path.GetFileName(maskedPath)
+                          + "\n（替换掉 " + hits + " 处个人信息 ✓ 外发用这份 ✓）";
+                    LogViewWin32.L("已同时导出脱敏版：" + maskedPath + "（替换 " + hits + " 处 ✓）");
+                }
+                catch (Exception me)
+                {
+                    LogViewWin32.L("脱敏版导出失败（不影响原报告 ✓）：" + me.Message);
+                }
+
+                LogViewWin32.Msg(owner, "报告已导出：\n\n" + Path.GetFileName(outPath) + extra,
                                 "WARDEN 日志查看器", true);
             }
             catch (Exception e)
@@ -149,6 +174,62 @@ namespace WardenLogView
                 LogViewWin32.L("导出报告失败：" + e.Message);
                 LogViewWin32.Msg(owner, "导出失败：" + e.Message, "WARDEN 日志查看器", false);
             }
+        }
+
+        /// <summary>
+        /// ★ 0.3.6（CP4）：把报告里的个人可识别信息（PII）替换掉。
+        ///
+        ///   覆盖这四类（都是这份报告里真实会出现的 ✓）：
+        ///     ① 用户目录路径   C:\Users\wei20\...   → C:\Users\&lt;用户&gt;\...
+        ///     ② WARDEN 数据目录 %LOCALAPPDATA%\WARDEN\... → &lt;WARDEN数据目录&gt;\...
+        ///     ③ 当前用户名 wei20 / 机器名 DESKTOP-XXXX → &lt;用户&gt; / &lt;机器名&gt;
+        ///     ④ 标题类字段值   标题=xxx / 窗口名=xxx / title: xxx → &lt;已脱敏&gt;
+        ///
+        ///   ★ 诚实的边界：不保证覆盖所有 PII ✗
+        ///     （例如窗口标题里被人写进日志的其它自由文本、命令行参数 ✓）
+        ///     所以它是"外发前降低暴露面"✓ 不是"保证匿名"✗
+        /// </summary>
+        internal static string RedactText(string text, out int count)
+        {
+            int n = 0;
+            string s = text;
+
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string dataDirPath = DataDir;
+            string user = Environment.UserName;
+            string machine = Environment.MachineName;
+
+            // 长串先替换（否则 C:\Users\wei20 会被后面的用户名单独替换掉一部分 ✓）
+            s = ReplaceCounted(s, profile, @"C:\Users\<用户>", ref n);
+            if (!string.IsNullOrEmpty(dataDirPath)) { s = ReplaceCounted(s, dataDirPath, "<WARDEN数据目录>", ref n); }
+            if (!string.IsNullOrEmpty(user)) { s = ReplaceCounted(s, user, "<用户>", ref n); }
+            if (!string.IsNullOrEmpty(machine)) { s = ReplaceCounted(s, machine, "<机器名>", ref n); }
+
+            // 标题类字段
+            s = System.Text.RegularExpressions.Regex.Replace(s,
+                @"(?m)^(\s*[^\r\n]*?(?:标题|窗口名|title)\s*[=:]\s*)(.+?)(\s{2,}|$)",
+                m =>
+                {
+                    n++;
+                    return m.Groups[1].Value + "<已脱敏>" + m.Groups[3].Value;
+                });
+
+            count = n;
+            return s;
+        }
+
+        /// <summary>替换并计数（不区分大小写 ✓ 循环替换直到没有 ✓）</summary>
+        private static string ReplaceCounted(string s, string from, string to, ref int count)
+        {
+            if (string.IsNullOrEmpty(from)) { return s; }
+            int idx = s.IndexOf(from, StringComparison.OrdinalIgnoreCase);
+            while (idx >= 0)
+            {
+                s = s.Substring(0, idx) + to + s.Substring(idx + from.Length);
+                count++;
+                idx = s.IndexOf(from, idx + to.Length, StringComparison.OrdinalIgnoreCase);
+            }
+            return s;
         }
 
         private static void Main()
