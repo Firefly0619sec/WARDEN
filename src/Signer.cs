@@ -123,6 +123,196 @@ namespace WARDEN
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
 
+        // ============================================================ 0.3.6 目录签名（catalog）
+        //  【这条漏洞是什么】只调 WTD_CHOICE_FILE → 只认文件【内嵌】的签名 ✗
+        //     Windows 自家大量程序是【目录签名】（哈希登记在 system32\CatRoot 的安全目录里 ✓）
+        //     实测：notepad/cmd/calc/mmc/wscript/wordpad/powershell 全被判成 Unsigned ✗（8/12 漏判 ✓）
+        //     原始 HRESULT 实测 = 0x800B0100（TRUST_E_NOSIGNATURE）← 它根本没去找目录 ✓
+        //  【怎么修】补一条目录验证路径：句柄算哈希 → 在目录里按哈希找成员 → 用
+        //     WTD_CHOICE_CATALOG + WINTRUST_CATALOG_INFO 验证 ✓
+        //     全程用【文件句柄】✓ 所以它和 CP2 一样免疫"验完再替换"✗
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct CATALOG_INFO
+        {
+            public uint cbStruct;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string wszCatalogFile;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WINTRUST_CATALOG_INFO
+        {
+            public uint cbStruct;
+            public IntPtr pcwszCatalogFilePath;   // 目录文件路径（必须有 ✓）
+            public IntPtr pcwszMemberTag;         // 成员标签（用句柄时可空 ✓）
+            public IntPtr pcwszMemberFilePath;    // 成员文件路径（用句柄时可空 ✓）
+            public IntPtr hMemberFile;            // ★ 我们传文件句柄（防替换 ✓）
+            public IntPtr pbCalculatedFileHash;   // 算好的哈希（可空 → 由系统算 ✓）
+            public uint cbCalculatedFileHash;
+            public IntPtr pcCatalogContext;       // 目录上下文（必须有 ✓）
+            public IntPtr hCatAdmin;              // 目录管理员句柄 ✓
+        }
+
+        private const uint WTD_CHOICE_CATALOG = 2;   // ★ 常量 WTD_CHOICE_CATALOG
+
+        [DllImport("wintrust.dll", SetLastError = true)]
+        private static extern bool CryptCATAdminAcquireContext(out IntPtr phCatAdmin,
+            IntPtr pgSubsystem, uint dwFlags);
+
+        [DllImport("wintrust.dll", SetLastError = true)]
+        private static extern bool CryptCATAdminReleaseContext(IntPtr hCatAdmin, uint dwFlags);
+
+        [DllImport("wintrust.dll", SetLastError = true)]
+        private static extern bool CryptCATAdminCalcHashFromFileHandle(IntPtr hFile,
+            ref uint pcbHash, byte[]? pbHash, uint dwFlags);
+
+        [DllImport("wintrust.dll", SetLastError = true)]
+        private static extern IntPtr CryptCATAdminEnumCatalogFromHash(IntPtr hCatAdmin,
+            byte[] pbHash, uint cbHash, uint dwFlags, ref IntPtr phPrevCatInfo);
+
+        [DllImport("wintrust.dll", SetLastError = true)]
+        private static extern bool CryptCATAdminReleaseCatalogContext(IntPtr hCatAdmin,
+            IntPtr hCatInfo, uint dwFlags);
+
+        [DllImport("wintrust.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool CryptCATCatalogInfoFromContext(IntPtr hCatInfo,
+            ref CATALOG_INFO psCatInfo, uint dwFlags);
+
+        /// <summary>
+        /// ★ 0.3.6：走【安全目录】验证。返回 0 表示验证通过 ✓（其它值=不通过/找不到）。
+        ///   全部基于传入的文件句柄 ✓ 所以验签期间文件不可能被替换 ✓
+        /// </summary>
+        private static uint VerifyWithCatalog(IntPtr hFile, string filePath)
+        {
+            if (hFile == IntPtr.Zero) { return TRUST_E_NOSIGNATURE; }
+
+            IntPtr hCatAdmin = IntPtr.Zero;
+            IntPtr hCatInfo = IntPtr.Zero;
+            byte[]? hash = null;
+            try
+            {
+                if (!CryptCATAdminAcquireContext(out hCatAdmin, IntPtr.Zero, 0))
+                {
+                    return TRUST_E_NOSIGNATURE;
+                }
+
+                // ---- ① 用句柄算这个文件的哈希（目录就是按哈希登记成员的 ✓）
+                uint cb = 0;
+                if (!CryptCATAdminCalcHashFromFileHandle(hFile, ref cb, null, 0) || cb == 0 || cb > 128)
+                {
+                    return TRUST_E_NOSIGNATURE;
+                }
+                hash = new byte[cb];
+                if (!CryptCATAdminCalcHashFromFileHandle(hFile, ref cb, hash, 0))
+                {
+                    return TRUST_E_NOSIGNATURE;
+                }
+
+                // ---- ② 在目录里枚举所有含这个哈希的成员（可能命中多个目录 ✓ 逐个试）
+                IntPtr prev = IntPtr.Zero;
+                for (int guard = 0; guard < 64; guard++)
+                {
+                    hCatInfo = CryptCATAdminEnumCatalogFromHash(hCatAdmin, hash, cb, 0, ref prev);
+                    if (hCatInfo == IntPtr.Zero) { break; }
+
+                    var ci = new CATALOG_INFO { cbStruct = (uint)Marshal.SizeOf<CATALOG_INFO>() };
+                    if (CryptCATCatalogInfoFromContext(hCatInfo, ref ci, 0))
+                    {
+                        uint hr = TrustCatalogMember(hCatAdmin, hCatInfo, ci.wszCatalogFile, hash, cb, hFile, filePath);
+                        if (hr == 0)
+                        {
+                            return 0;   // ★ 命中并验证通过 ✓
+                        }
+                    }
+
+                    // 换下一个：先放掉上一个（prev 交给 API 当游标 ✓）
+                    CryptCATAdminReleaseCatalogContext(hCatAdmin, prev, 0);
+                    prev = hCatInfo;
+                    hCatInfo = IntPtr.Zero;
+                }
+                if (prev != IntPtr.Zero) { CryptCATAdminReleaseCatalogContext(hCatAdmin, prev, 0); }
+                return TRUST_E_NOSIGNATURE;
+            }
+            catch
+            {
+                return TRUST_E_NOSIGNATURE;   // 出错=不通过（保守 ✓ 与原来"出错按 Unknown"的语义分开 ✓）
+            }
+            finally
+            {
+                if (hCatInfo != IntPtr.Zero && hCatAdmin != IntPtr.Zero)
+                {
+                    CryptCATAdminReleaseCatalogContext(hCatAdmin, hCatInfo, 0);
+                }
+                if (hCatAdmin != IntPtr.Zero) { CryptCATAdminReleaseContext(hCatAdmin, 0); }
+            }
+        }
+
+        /// <summary>对一个目录成员跑 WinVerifyTrust（WTD_CHOICE_CATALOG ✓）。返回 0 = 通过 ✓</summary>
+        private static uint TrustCatalogMember(IntPtr hCatAdmin, IntPtr hCatInfo,
+            string catalogFile, byte[] hash, uint cbHash, IntPtr hFile, string filePath)
+        {
+            IntPtr catPtr = IntPtr.Zero, hashPtr = IntPtr.Zero;
+            IntPtr infoPtr = IntPtr.Zero, dataPtr = IntPtr.Zero;
+            try
+            {
+                catPtr = Marshal.StringToHGlobalUni(catalogFile);
+                hashPtr = Marshal.AllocHGlobal((int)cbHash);
+                Marshal.Copy(hash, 0, hashPtr, (int)cbHash);
+
+                var info = new WINTRUST_CATALOG_INFO
+                {
+                    cbStruct = (uint)Marshal.SizeOf<WINTRUST_CATALOG_INFO>(),
+                    pcwszCatalogFilePath = catPtr,
+                    pcwszMemberTag = IntPtr.Zero,
+                    pcwszMemberFilePath = IntPtr.Zero,
+                    hMemberFile = hFile,          // ★ 句柄优先（防替换 ✓）
+                    pbCalculatedFileHash = hashPtr,
+                    cbCalculatedFileHash = cbHash,
+                    pcCatalogContext = hCatInfo,
+                    hCatAdmin = hCatAdmin,
+                };
+                infoPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WINTRUST_CATALOG_INFO>());
+                Marshal.StructureToPtr(info, infoPtr, false);
+
+                var data = new WINTRUST_DATA
+                {
+                    cbStruct = (uint)Marshal.SizeOf<WINTRUST_DATA>(),
+                    dwUIChoice = WTD_UI_NONE,
+                    fdwRevocationChecks = WTD_REVOKE_NONE,
+                    dwUnionChoice = WTD_CHOICE_CATALOG,
+                    pFile = infoPtr,
+                    dwStateAction = WTD_STATEACTION_VERIFY,
+                    dwProvFlags = WTD_SAFER_FLAG,
+                };
+                dataPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WINTRUST_DATA>());
+                Marshal.StructureToPtr(data, dataPtr, false);
+
+                uint hr = WinVerifyTrust(IntPtr.Zero,
+                                         new[] { WINTRUST_ACTION_GENERIC_VERIFY_V2 },
+                                         dataPtr);
+
+                // 状态数据必须 CLOSE 掉 ✓
+                var closeData = Marshal.PtrToStructure<WINTRUST_DATA>(dataPtr);
+                closeData.dwStateAction = WTD_STATEACTION_CLOSE;
+                Marshal.StructureToPtr(closeData, dataPtr, false);
+                WinVerifyTrust(IntPtr.Zero,
+                               new[] { WINTRUST_ACTION_GENERIC_VERIFY_V2 },
+                               dataPtr);
+                return hr;
+            }
+            catch
+            {
+                return TRUST_E_NOSIGNATURE;
+            }
+            finally
+            {
+                if (dataPtr != IntPtr.Zero) Marshal.FreeHGlobal(dataPtr);
+                if (infoPtr != IntPtr.Zero) Marshal.FreeHGlobal(infoPtr);
+                if (hashPtr != IntPtr.Zero) Marshal.FreeHGlobal(hashPtr);
+                if (catPtr != IntPtr.Zero) Marshal.FreeHGlobal(catPtr);
+            }
+        }
+
         // ------------------------------------------------------------ 缓存
         /// <summary>按进程名缓存结果 —— 同一个进程反复验签很浪费。</summary>
         private static readonly System.Collections.Generic.Dictionary<string, SignatureState>
@@ -202,6 +392,19 @@ namespace WARDEN
                 uint hr = WinVerifyTrust(IntPtr.Zero,
                                          new[] { WINTRUST_ACTION_GENERIC_VERIFY_V2 },
                                          trustDataPtr);
+
+                // ★ 0.3.6 Signer 修复：内嵌签名没验过时，再走【安全目录】那条路 ✓
+                //   实测教训：只查内嵌签名 → Windows 自家目录签名的程序（notepad/cmd/calc/
+                //   mmc/wscript/wordpad/powershell 等）会被误判成 Unsigned ✗（原始 HRESULT
+                //   是 0x800B0100 = 找不到签名 ✓ 因为它压根没去查目录 ✓）
+                if (hr != 0 && hFile != IntPtr.Zero)
+                {
+                    uint hrCat = VerifyWithCatalog(hFile, filePath);
+                    if (hrCat == 0)
+                    {
+                        hr = 0;   // ★ 目录里查到成员且验证通过 ✓ 按"已签名"处理 ✓
+                    }
+                }
                 result = MapResult(hr, filePath);
 
                 // ★ 必须再调一次 CLOSE，否则会泄漏状态数据
@@ -402,3 +605,4 @@ namespace WARDEN
         };
     }
 }
+
