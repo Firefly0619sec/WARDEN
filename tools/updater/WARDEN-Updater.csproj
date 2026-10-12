@@ -31,6 +31,10 @@
     <Compile Include="..\setup\StopToken.cs">
       <Link>StopToken.cs</Link>
     </Compile>
+    <!-- ★ 0.3.6（AP0）：复用 setup 的 PGP 校验器（内嵌公钥 + 指纹写死 ✓ 自包含 ✓ AOT 安全 ✓） -->
+    <Compile Include="..\setup\PgpVerify.cs">
+      <Link>PgpVerify.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

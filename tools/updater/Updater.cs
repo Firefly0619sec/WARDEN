@@ -37,6 +37,9 @@ namespace WardenUpdater
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WARDEN");
         private static readonly string LogPath = Path.Combine(DataDir, "setup.log");
 
+        /// <summary>★ 0.3.6：只有显式 --allow-unsigned 才允许跳过发布者签名校验（调试用 ✗ 必写日志 ✓）</summary>
+        private static bool AllowUnsigned;
+
         public static void Log(string s)
         {
             string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "  [更新] " + s;
@@ -59,6 +62,8 @@ namespace WardenUpdater
             {
                 if (a.Equals("--silent", StringComparison.OrdinalIgnoreCase)) { silent = true; }
                 else if (a.Equals("--no-launch", StringComparison.OrdinalIgnoreCase)) { noLaunch = true; }
+                // ★ 0.3.6：唯一的"不验签名"逃生门（只给调试用 ✗ 一定会写进日志 ✓）
+                else if (a.Equals("--allow-unsigned", StringComparison.OrdinalIgnoreCase)) { AllowUnsigned = true; }
                 else if (!a.StartsWith("--", StringComparison.Ordinal)) { zip = a; }
             }
 
@@ -90,6 +95,15 @@ namespace WardenUpdater
             {
                 Log("★ 找不到更新包：" + zip);
                 Environment.Exit(3);
+                return;
+            }
+
+            // ---- ⓪ ★ 0.3.6（AP0）：先验【发布者签名】✗ 不通过就别往下走 ✓
+            //   为什么放在最前面：签名是唯一的"来源认证"✓ 哈希清单本身也可能被换掉 ✗
+            if (!VerifySignature(zip))
+            {
+                Log("★★ 发布者签名校验不通过 → 拒绝更新 ✗（更新包或签名清单可能被人换过）");
+                Environment.Exit(8);
                 return;
             }
 
@@ -145,6 +159,96 @@ namespace WardenUpdater
                     "WARDEN 更新", true);
             }
             Environment.Exit(0);
+        }
+
+        /// <summary>
+        /// ★★★ 0.3.6（AP0）：校验更新包的【发布者签名】。
+        ///
+        ///   做法（更新包 zip 所在文件夹里）：
+        ///     ① 找到 SHA256SUMS.txt 与 SHA256SUMS.txt.asc
+        ///     ② 用【内嵌公钥】验 .asc 是不是主人签的（指纹写死在 PgpVerify 里 ✓）
+        ///     ③ 从已签名的 SHA256SUMS.txt 里找出这个 zip 的哈希，与本机实算比对 ✓
+        ///
+        ///   为什么签清单而不是直接签 zip：
+        ///     清单被签了，就等于"包名 + 哈希"都被固定住 ✓
+        ///     别人换包 → 哈希对不上 ✓ 别人改清单 → 签名失效 ✓ 两条路都被堵死 ✓
+        ///
+        ///   fail-closed：没有签名就【拒绝】✗
+        ///     唯一例外是显式 --allow-unsigned（调试用 ✓ 且一定会写进日志 ✓）
+        /// </summary>
+        private static bool VerifySignature(string zip)
+        {
+            string full = Path.GetFullPath(zip);
+            string? dir = Path.GetDirectoryName(full);
+            if (string.IsNullOrEmpty(dir)) dir = ".";
+            string sums = Path.Combine(dir, "SHA256SUMS.txt");
+            string asc = sums + ".asc";
+
+            if (!File.Exists(asc))
+            {
+                if (AllowUnsigned)
+                {
+                    Log("★ 用了 --allow-unsigned：跳过发布者签名校验 ✗（调试用，绝不可这样给用户装）");
+                    return true;
+                }
+                Log("★ 找不到发布者签名：" + Path.GetFileName(asc));
+                Log("  正确做法：把 SHA256SUMS.txt 与 SHA256SUMS.txt.asc 跟更新包放在同一个文件夹 ✓");
+                Log("  签名缺失时【拒绝更新】✗ 这是设计如此（fail-closed ✓）");
+                return false;
+            }
+            if (!File.Exists(sums))
+            {
+                Log("★ 有 .asc 却没有 SHA256SUMS.txt → 拒绝更新 ✗");
+                return false;
+            }
+
+            Log("校验发布者签名：" + Path.GetFileName(asc));
+            if (!WardenSetup.PgpVerify.VerifyDetached(sums, asc, Log))
+            {
+                Log("★★ 签名无效，或签名者不是发布者 → 拒绝更新 ✗");
+                return false;
+            }
+            Log("✓ 签名有效，签名者指纹 = " + WardenSetup.PgpVerify.OwnerFingerprint);
+
+            // ---- ③ 从已签名的清单里取这个 zip 的哈希，与本机实算比对 ✓
+            string zipName = Path.GetFileName(full);
+            string? want = null;
+            foreach (string raw in File.ReadAllLines(sums))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith("#")) continue;
+                int i = line.IndexOf("  ", StringComparison.Ordinal);
+                if (i < 0) continue;
+                string hash = line.Substring(0, i).Trim();
+                string name = line.Substring(i + 2).Trim();
+                if (name.StartsWith("*")) name = name.Substring(1);
+                if (Path.GetFileName(name).Equals(zipName, StringComparison.OrdinalIgnoreCase))
+                {
+                    want = hash;
+                    break;
+                }
+            }
+            if (want == null)
+            {
+                Log("★ 已签名清单里没有 " + zipName + " → 拒绝更新 ✗（清单与更新包不配套）");
+                return false;
+            }
+
+            string got;
+            using (var sha = SHA256.Create())
+            using (var fs = File.OpenRead(full))
+            {
+                got = Convert.ToHexString(sha.ComputeHash(fs)).ToLowerInvariant();
+            }
+            if (!string.Equals(want, got, StringComparison.OrdinalIgnoreCase))
+            {
+                Log("★★ 哈希与已签名清单不一致 → 拒绝更新 ✗");
+                Log("   清单里写的: " + want);
+                Log("   本机算出来: " + got);
+                return false;
+            }
+            Log("✓ 已签名清单里的哈希与本机实算一致（" + got.Substring(0, 16) + "…）");
+            return true;
         }
 
         /// <summary>★ 同名 .sha256 存在就必须校验（格式：一行十六进制）✓</summary>
