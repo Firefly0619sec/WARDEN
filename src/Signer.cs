@@ -102,6 +102,27 @@ namespace WARDEN
         private static extern uint WinVerifyTrust(IntPtr hwnd, [In] Guid[] pgActionID,   // ★ 验证 Authenticode 数字签名（核心：判断进程是否被篡改）
                                                   IntPtr pWVTData);
 
+        // ------------------------------------------------------------ 0.3.6（CP2）按句柄验签
+        //  【这条漏洞是什么】原来"先按路径验签、再按路径去操作" ✗
+        //     验证与操作之间有个时间窗 ✗ 别人在这段时间把文件换掉 → 验的是好文件、动的是坏文件 ✗
+        //  【怎么修】
+        //     ① 先用【只允许共享读】的共享模式打开文件：
+        //        只共享读 → 验签期间别人【不能写、不能替换、不能删除】这个文件 ✓
+        //     ② 把句柄交给 WinVerifyTrust（WINTRUST_FILE_INFO.hFile ✓）
+        //        → 它验证的就是【我们手上这个对象】✓ 不是"某个时刻那个路径" ✓
+        private const uint GENERIC_READ = 0x80000000;
+        private const uint FILE_SHARE_READ = 0x00000001;   // ★ 关键：不共享写/删 ✓
+        private const uint OPEN_EXISTING = 3;
+        private const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateFileW(string lpFileName, uint dwDesiredAccess,
+            uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+            uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
+
         // ------------------------------------------------------------ 缓存
         /// <summary>按进程名缓存结果 —— 同一个进程反复验签很浪费。</summary>
         private static readonly System.Collections.Generic.Dictionary<string, SignatureState>
@@ -117,7 +138,11 @@ namespace WARDEN
             {
                 return SignatureState.Unknown;
             }
-            if (_cache.TryGetValue(filePath, out var cached))
+            // ★ 0.3.6（CP2）：缓存键不能只用路径 ✗
+            //   否则"同路径但内容已被换掉"的文件会命中旧结论 ✓
+            //   → 键里带上【文件大小 + 最后写入时间】✓ 内容变了必然 miss ✓
+            string cacheKey = CacheKey(filePath);
+            if (_cache.TryGetValue(cacheKey, out var cached))
             {
                 return cached;
             }
@@ -126,16 +151,36 @@ namespace WARDEN
             IntPtr pathPtr = IntPtr.Zero;
             IntPtr fileInfoPtr = IntPtr.Zero;
             IntPtr trustDataPtr = IntPtr.Zero;
+            IntPtr hFile = IntPtr.Zero;   // ★ CP2：这次验签真正绑定的文件句柄
 
             try
             {
+                // ★ 0.3.6（CP2）：先拿句柄（只共享读 → 验签期间文件动不了 ✓）
+                //   拿不到（被独占/不存在/无权限）→ hFile 保持 0 → 退回按路径验证 ✓
+                //   保守策略不变：任何异常都不阻断（验签出错按 Unknown 处理 ✓）
+                try
+                {
+                    hFile = CreateFileW(filePath, GENERIC_READ, FILE_SHARE_READ,
+                                        IntPtr.Zero, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, IntPtr.Zero);
+                    if (hFile == new IntPtr(-1))
+                    {
+                        hFile = IntPtr.Zero;
+                    }
+                }
+                catch { hFile = IntPtr.Zero; }
+
                 pathPtr = Marshal.StringToHGlobalUni(filePath);
 
                 var fileInfo = new WINTRUST_FILE_INFO
                 {
                     cbStruct = (uint)Marshal.SizeOf<WINTRUST_FILE_INFO>(),
-                    pcwszFilePath = pathPtr,
-                    hFile = IntPtr.Zero,
+                    // ★ CP2 实测教训（2026-10-12）：句柄与路径【只能给一个】✗
+                    //   两个都给 → WinVerifyTrust 直接失败 ✗
+                    //   后果很严重：微软签名的 notepad.exe 会被判成 Unsigned ✗（实测确认 ✓）
+                    //   正确做法：有句柄就【只给句柄】（那才是防替换的安全路径 ✓）
+                    //             拿不到句柄才退回"只给路径"✓
+                    pcwszFilePath = hFile != IntPtr.Zero ? IntPtr.Zero : pathPtr,
+                    hFile = hFile,
                     pgKnownSubject = IntPtr.Zero,
                 };
                 fileInfoPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WINTRUST_FILE_INFO>());
@@ -179,10 +224,34 @@ namespace WARDEN
                 if (trustDataPtr != IntPtr.Zero) Marshal.FreeHGlobal(trustDataPtr);
                 if (fileInfoPtr != IntPtr.Zero) Marshal.FreeHGlobal(fileInfoPtr);
                 if (pathPtr != IntPtr.Zero) Marshal.FreeHGlobal(pathPtr);
+                // ★ CP2：句柄一定要关 ✗ 否则句柄泄漏 ✓
+                if (hFile != IntPtr.Zero) { CloseHandle(hFile); hFile = IntPtr.Zero; }
             }
 
-            _cache[filePath] = result;
+            _cache[cacheKey] = result;
             return result;
+        }
+
+        /// <summary>
+        /// ★ 0.3.6（CP2）：验签缓存的键。
+        ///   路径 + 文件大小 + 最后写入时间（UTC ticks）✓
+        ///   换内容必然 miss ✓ 这样"同路径换文件"不会再骗到缓存 ✓
+        /// </summary>
+        private static string CacheKey(string path)
+        {
+            try
+            {
+                var fi = new System.IO.FileInfo(path);
+                if (!fi.Exists)
+                {
+                    return path + "|missing";
+                }
+                return path + "|" + fi.Length.ToString() + "|" + fi.LastWriteTimeUtc.Ticks.ToString();
+            }
+            catch
+            {
+                return path + "|err";
+            }
         }
 
         private static SignatureState MapResult(uint hr, string filePath)
